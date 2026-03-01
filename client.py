@@ -1,14 +1,10 @@
 import socket
 import logging
+from src.utils import createLogger
 
-logger = logging.Logger(name="client")
-logger.setLevel(logging.INDEBUGFO)
 
-handler = logging.FileHandler(f"logs/client.log", "w")
-formatter = logging.Formatter("%(name)s %(asctime)s %(levelname)s %(message)s")
-
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+logger = createLogger("client")
+logger.setLevel(logging.DEBUG)
 
 
 def main():

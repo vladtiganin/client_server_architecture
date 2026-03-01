@@ -2,16 +2,11 @@ import threading
 import socket
 import logging
 from src.handlers import clientHandler
+from src.utils import createLogger
 
 
-logger = logging.Logger(name="server")
+logger = createLogger("server")
 logger.setLevel(logging.DEBUG)
-
-handler = logging.FileHandler(f"logs/server.log", "w")
-formatter = logging.Formatter("%(name)s %(asctime)s %(levelname)s %(message)s")
-
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 
 
 def main():
