@@ -3,6 +3,7 @@
 
 #include <gmpxx.h>
 #include <utility>
+#include <vector>
 
 class RSA {
 private:
@@ -12,7 +13,13 @@ public:
     std::pair<mpz_class, mpz_class> public_key;   
     std::pair<mpz_class, mpz_class> private_key;  
     
-    void generateKeys();
+    void generateKeys(const int key_size = 1024);
+
+    mpz_class encryptKey(const mpz_class& data);
+    mpz_class decryptKey(const mpz_class& data);
+    
+    mpz_class bytesToMpz(const std::vector<unsigned char>& bytes);
+    std::vector<unsigned char> mpzToBytes(const mpz_class& num);
 };
 
 #endif

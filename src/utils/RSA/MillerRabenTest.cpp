@@ -12,7 +12,7 @@ void getPrimeValue(mpz_class& p, const int& bc){
 
 void getPrimeValueLB(mpz_class& p,const int& bc, mpz_class& ub){
     do{
-        getFixedLengthBitValue(bc, p);
+        getFixedLengthBitValue(bc - 32, p);
     }while(ub < p || !MRTest(p));
 };
 

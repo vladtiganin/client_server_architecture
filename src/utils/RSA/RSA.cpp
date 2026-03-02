@@ -3,20 +3,25 @@
 #include "MillerRabenTest.h"
 #include <string>
 
-void RSA::generateKeys(){
+void RSA::generateKeys(const int key_size){
     mpz_class p = 0;
-    getPrimeValue(p, 1024);
+    getPrimeValue(p, key_size);
 
     mpz_class q = 0;
     do{
-        getPrimeValue(q, 1024);
+        getPrimeValue(q, key_size);
     }while(p == q);
 
     mpz_class N = p * q;
     mpz_class Aliler_N = (p-1)*(q-1);
 
     mpz_class e;
-    getPrimeValueLB(e, 1024, Aliler_N);
+    mpz_class gcd_result;
+    mpz_gcd(gcd_result.get_mpz_t(), e.get_mpz_t(), Aliler_N.get_mpz_t());
+    if (gcd_result != 1) {
+        getPrimeValueLB(e, key_size, Aliler_N);
+    }
+
 
 
     mpz_class d;
@@ -55,6 +60,48 @@ void RSA::extendedEuclidean(mpz_class& d, const mpz_class& AN, const mpz_class& 
         x0 = temp_x;
         y0 = temp_y;
             
-        d = (y0 % e + e) % e;  
     }
+    d = (y0 % e + e) % e;  
+}
+
+
+mpz_class RSA::encryptKey(const mpz_class& data){
+    if (data >= public_key.second){
+        throw std::runtime_error("Encrypting data is too large for RSA modulus");
+    }
+
+    mpz_class result;
+    mpz_powm(result.get_mpz_t(), data.get_mpz_t(), public_key.first.get_mpz_t(), public_key.second.get_mpz_t());
+    return result; 
+}
+
+mpz_class RSA::decryptKey(const mpz_class& data) {
+    mpz_class result;
+    mpz_powm(result.get_mpz_t(), 
+             data.get_mpz_t(), 
+             private_key.first.get_mpz_t(), 
+             private_key.second.get_mpz_t());
+    return result;
+}
+
+
+mpz_class RSA::bytesToMpz(const std::vector<unsigned char>& bytes) {
+    mpz_class result = 0;
+    for (unsigned char byte : bytes) {
+        result = (result << 8) | byte;
+    }
+    return result;
+}
+
+std::vector<unsigned char> RSA::mpzToBytes(const mpz_class& num) {
+    std::vector<unsigned char> result;
+    mpz_class temp = num;
+    
+    while (temp > 0) {
+        unsigned char byte = mpz_class(temp & 0xFF).get_ui();
+        result.insert(result.begin(), byte);
+        temp >>= 8;
+    }
+    
+    return result;
 }
