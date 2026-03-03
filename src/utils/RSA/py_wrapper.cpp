@@ -29,6 +29,9 @@ private:
 public:
     RSAKey(const mpz_class& f, const mpz_class& s) : first(f), second(s){};
 
+    RSAKey(const py::int_& f, const py::int_& s) 
+        : first(pyint_to_mpz(f)), second(pyint_to_mpz(s)) {};
+
     py::int_ get_first() const{
         return mpz_to_pyint(first);
     }
@@ -170,6 +173,7 @@ PYBIND11_MODULE(rsa_core, m){
     m.doc() = "RSA core module";
 
     py::class_<RSAKey>(m, "RSAKey")
+        .def(py::init<const py::int_&, const py::int_&>())
         .def_property_readonly("first", &RSAKey::get_first)
         .def_property_readonly("second", &RSAKey::get_second)
         .def("__repr__", [](const RSAKey& k){
