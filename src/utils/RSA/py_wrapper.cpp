@@ -151,7 +151,7 @@ public:
         return py::bytes(reinterpret_cast<char*>(encrypted_bytes.data()), encrypted_bytes.size());
     }
     
-    static py::bytes decrypt_bytes_with_key(py::bytes bytes, const RSAKey& key) {
+    static py::bytes decrypt_bytes_with_key(py::bytes bytes, const RSAKey& key, size_t original_size = 0) {
         std::string bytes_str = bytes;
         std::vector<unsigned char> bytes_vec(bytes_str.begin(), bytes_str.end());
         
@@ -163,6 +163,11 @@ public:
         mpz_class decrypted = temp_rsa.decryptKey(enc_mpz);
         
         std::vector<unsigned char> dec_bytes = temp_rsa.mpzToBytes(decrypted);
+
+        if (original_size > 0 && dec_bytes.size() < original_size) {
+            dec_bytes.insert(dec_bytes.begin(), original_size - dec_bytes.size(), 0);
+        }
+
         return py::bytes(reinterpret_cast<char*>(dec_bytes.data()), dec_bytes.size());
     }
 
@@ -206,5 +211,6 @@ PYBIND11_MODULE(rsa_core, m){
              "Encrypt bytes with provided public key")
         .def_static("decrypt_bytes_with_key", &PyRSA::decrypt_bytes_with_key,
              py::arg("encrypted_data"), py::arg("key"),
+             py::arg("original_size") = 0,
              "Decrypt bytes with provided private key");
 };

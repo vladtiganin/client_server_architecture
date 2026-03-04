@@ -61,7 +61,8 @@ void RSA::extendedEuclidean(mpz_class& d, const mpz_class& AN, const mpz_class& 
         y0 = temp_y;
             
     }
-    d = (y0 % e + e) % e;  
+    // d = (y0 % e + e) % e; 
+    d = (y0 % AN + AN) % AN; 
 }
 
 
@@ -94,14 +95,18 @@ mpz_class RSA::bytesToMpz(const std::vector<unsigned char>& bytes) {
 }
 
 std::vector<unsigned char> RSA::mpzToBytes(const mpz_class& num) {
+    if (num == 0) return {0};
+    
     std::vector<unsigned char> result;
     mpz_class temp = num;
     
     while (temp > 0) {
         unsigned char byte = mpz_class(temp & 0xFF).get_ui();
-        result.insert(result.begin(), byte);
+        result.push_back(byte);
         temp >>= 8;
     }
+    
+    std::reverse(result.begin(), result.end());
     
     return result;
 }

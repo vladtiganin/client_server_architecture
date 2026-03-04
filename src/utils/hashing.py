@@ -1,5 +1,6 @@
 import logging
 from src.utils.createLogger import createLogger
+from src.utils.bytesFuncs import getFormatBytesFromRSAKey
 import hashlib
 import os
 import json
@@ -24,24 +25,22 @@ class HashingSHA_256:
         salted_data = salt + data_bytes  
         hash_data = hashlib.sha256(salted_data).digest()
 
-        return_dict = {
-            "salt" : salt.hex(),
-            "hash_data" : hash_data.hex()
-        }
-
-
-        return_dict_bytes = (json.dumps(return_dict)).encode('utf-8')
-        logger.debug(f"return_dict_bytes : {return_dict_bytes}")
-
-        return return_dict_bytes
+        return salt + hash_data
     
 
     @staticmethod
-    def verifyHash(data_to_verify,data_bytes: bytes) -> bool:
-        salt = bytes.fromhex(data_bytes[:32])
-        hash_data = bytes.fromhex(data_bytes[32:])
+    def verifyHash(plain_data, signature: bytes) -> bool:
+        # salt = bytes.fromhex(signature[:32])
+        # hash_data = bytes.fromhex(signature[32:])
 
-        new_hash_data = hashlib.sha256(salt + data_to_verify) 
+        salt = (signature[:32])
+        hash_data = (signature[32:])
+
+        new_hash_data = hashlib.sha256(salt + getFormatBytesFromRSAKey(plain_data)).digest() 
+
+        logger.debug(f"Original hash: {hash_data.hex()}")
+        logger.debug(f"Calculated hash: {new_hash_data.hex()}")
+
         if(new_hash_data == hash_data) : return True
         else : return False
 

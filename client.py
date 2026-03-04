@@ -5,59 +5,65 @@ from src.utils.RSA.rsa_core import RSA
 from src.utils.bytesFuncs import getFormatBytesFromRSAKey, bigIntToBytes
 from src.utils.hashing import HashingSHA_256
 import json
+from pydantic import BaseModel, PrivateAttr
 
 
 logger = createLogger("client")
 logger.setLevel(logging.DEBUG)
 
 
-def main():
-    logger.debug("Start working...")
-
-    try:
-        sock = socket.socket()
-        sock.connect(("localhost", 9090))
-    except Exception as ex:
-        logger.exception("Error during connecting to server: ")
-
-    rsa = RSA()
-    rsa.generate_keys(1024)
+class Client(BaseModel):
+    host: str
+    port: int
+    _sock: socket.socket | None = PrivateAttr(default=None)
 
 
-    public_key_bytes = getFormatBytesFromRSAKey(rsa.public_key)
-    public_key_bytes_hash = HashingSHA_256.hashingBytes(public_key_bytes)
-    hash_bytes = bytes.fromhex(json.loads(public_key_bytes_hash.decode('utf-8'))['hash_data'])
-    client_signature = RSA.encrypt_bytes_with_key(hash_bytes, rsa.private_key)
-    
+    def connect(self) -> None:
+        logger.debug("Start working...")
 
-    send_data = (public_key_bytes +
-                 len(public_key_bytes_hash).to_bytes(4,'big')+
-                 public_key_bytes_hash +
-                 len(client_signature).to_bytes(4,'big')+
-                 client_signature)
-    
-    logger.debug(f"Signature lenth : {len(client_signature)}")
-
-    try:
-        sock.sendall(send_data)
-    except Exception as ex:
-        logger.exception("Error during sending key: ")
+        try:
+            self._sock = socket.socket()
+            self._sock.connect((self.host, self.port))
+            self.get_session_key()
+        except Exception as ex:
+            logger.exception("Error during connecting to server: ")
 
 
+    def close_connection(self) -> None:
+        if self._sock:
+            self._sock.close()
+            logger.debug("End working...")
+        else:
+            logger.debug("Was no connection")
 
-    logger.debug(rsa.public_key.first)
-    logger.debug(rsa.public_key.second)
 
-    # user_str = input("Enter: ")
-    # sock.send(user_str.encode())
-    # data = sock.recv(1024)
+    def get_session_key(self) -> None:
+        rsa = RSA()
+        rsa.generate_keys(1024)
 
-    # print(data.decode())
+        public_key_bytes = getFormatBytesFromRSAKey(rsa.public_key)
+        public_key_bytes_hash = HashingSHA_256.hashingBytes(public_key_bytes)
+        client_signature = RSA.encrypt_bytes_with_key(public_key_bytes_hash, rsa.private_key)
+        logger.debug(f"Encrypted signature length: {len(client_signature)}")
 
-    sock.close()
-    logger.debug("End working...")
+        send_data = (public_key_bytes +
+                    len(client_signature).to_bytes(4,'big')+
+                    client_signature)
+        
+        try:
+            self._sock.sendall(send_data)
+        except Exception as ex:
+            logger.exception("Error during sending key: ")
 
+        #далее нужно будет получить AES ключ
 
 
 if __name__ == "__main__":
-    main()
+    client = Client(
+        host="localhost",
+        port=9090
+    )
+
+    client.connect()
+
+    client.close_connection()

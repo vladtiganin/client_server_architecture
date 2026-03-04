@@ -40,7 +40,8 @@ def getFormatBytesFromRSAKey(key : RSAKey) -> bytes:
     key_part_1_enc = bigIntToBytes(key.first)
     key_part_2_enc = bigIntToBytes(key.second)
     lenth_1, lenth_2 = len(key_part_1_enc), len(key_part_2_enc)
-    logger.debug(f"lenth_1: {lenth_1}\nlenth_2: {lenth_2}")
+    logger.debug(f"lenth_1: {lenth_1}")
+    logger.debug(f"lenth_2: {lenth_2}")
 
     return (lenth_1.to_bytes(4,byteorder='big') + 
             lenth_2.to_bytes(4,byteorder='big') + 

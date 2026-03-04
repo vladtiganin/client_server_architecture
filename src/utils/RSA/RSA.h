@@ -4,6 +4,7 @@
 #include <gmpxx.h>
 #include <utility>
 #include <vector>
+#include <algorithm>  
 
 class RSA {
 private:
