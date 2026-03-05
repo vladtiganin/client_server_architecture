@@ -41,6 +41,18 @@ class Client(BaseModel):
         rsa = RSA()
         rsa.generate_keys(1024)
 
+        data_to_send = self.__gengerateDataToSendRSAKey(rsa)
+
+        try:
+            self._sock.sendall(data_to_send)
+        except Exception as ex:
+            logger.exception("Error during sending key: ")
+
+        #далее нужно будет получить AES ключ
+
+
+    def __gengerateDataToSendRSAKey(self, rsa) -> bytes:
+
         public_key_bytes = getFormatBytesFromRSAKey(rsa.public_key)
         public_key_bytes_hash = HashingSHA_256.hashingBytes(public_key_bytes)
         client_signature = RSA.encrypt_bytes_with_key(public_key_bytes_hash, rsa.private_key)
@@ -49,13 +61,9 @@ class Client(BaseModel):
         send_data = (public_key_bytes +
                     len(client_signature).to_bytes(4,'big')+
                     client_signature)
+        logger.debug(f"RSA pk data : {send_data}")
         
-        try:
-            self._sock.sendall(send_data)
-        except Exception as ex:
-            logger.exception("Error during sending key: ")
-
-        #далее нужно будет получить AES ключ
+        return send_data
 
 
 if __name__ == "__main__":

@@ -3,8 +3,7 @@ from src.utils.createLogger import createLogger
 from src.utils.bytesFuncs import getFormatBytesFromRSAKey
 import hashlib
 import os
-import json
-import base64
+
 
 logger = createLogger(__name__)
 logger.setLevel(logging.DEBUG)
