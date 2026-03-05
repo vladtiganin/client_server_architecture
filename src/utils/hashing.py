@@ -20,7 +20,7 @@ class HashingSHA_256:
         if salt is None:
             logger.debug("Salt is None, generate new one")
             salt = HashingSHA_256.generate_salt(32)
-
+        
         salted_data = salt + data_bytes  
         hash_data = hashlib.sha256(salted_data).digest()
 

@@ -42,7 +42,6 @@ class ClientHandler():
             logger.exception("Something goes wrong during eas exchenge : ")
 
 
-
     def __recive_signature(self) -> bytes:
         sig_lenth = int.from_bytes(recvRawBytes(self.conn, 4), 'big')
         signature = recvRawBytes(self.conn, sig_lenth)
@@ -71,10 +70,24 @@ class ClientHandler():
         return data_to_send
 
 
+    def start_communication_loop(self) -> None:
+        while True:
+            pass
+
+
+    def AUTorREG(self):
+        pass
+
+
 def clientHandler(conn):
     logger.debug("Start handle client")
 
     handler = ClientHandler(conn)
-    handler.handshake()
+    try:
+        handler.handshake()
+        handler.AUTorREG()
+        # handler.start_communication_loop()
+    except Exception as ex:
+        logger.exception("Error: ")
 
     logger.debug("End handle client") 

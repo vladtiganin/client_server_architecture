@@ -2,10 +2,10 @@ import socket
 import logging
 from src.utils import createLogger
 from src.utils.RSA.rsa_core import RSA
-from src.utils.bytesFuncs import getFormatBytesFromRSAKey, bigIntToBytes,recvRawBytes
+from src.utils.bytesFuncs import getFormatBytesFromRSAKey, getFromatBytesFromMess,recvRawBytes
 from src.utils.hashing import HashingSHA_256
-import json
 from pydantic import BaseModel, PrivateAttr
+from src.utils.AESfuncs import decrypedByAES, encrypedByAES
 
 
 logger = createLogger("client")
@@ -17,6 +17,7 @@ class Client(BaseModel):
     port: int
     _sock: socket.socket | None = PrivateAttr(default=None)
     _aes_key: bytes | None = PrivateAttr(default=None)
+    _rsa: RSA | None = PrivateAttr(default=None)
 
 
     def connect(self) -> None:
@@ -39,10 +40,10 @@ class Client(BaseModel):
 
 
     def get_session_key(self) -> None:
-        rsa = RSA()
-        rsa.generate_keys(1024)
+        self._rsa = RSA()
+        self._rsa.generate_keys(1024)
 
-        data_to_send = self.__gengerate_data_to_send_RSAKey(rsa)
+        data_to_send = self.__gengerate_data_to_send_RSAKey()
 
         try:
             self._sock.sendall(data_to_send)
@@ -50,33 +51,37 @@ class Client(BaseModel):
         except Exception as ex:
             logger.exception("Error during sending key: ")
 
-        #далее нужно будет получить AES ключ
-
         aes_encr_lenth = int.from_bytes(recvRawBytes(self._sock, 4), 'big')
-        logger.debug("Recive aes lenth")
         encrypt_aes_bytes = recvRawBytes(self._sock ,aes_encr_lenth)
-        logger.debug("Recive AES key")
-        aes__key = RSA.decrypt_bytes_with_key(encrypt_aes_bytes, rsa.private_key)
+        aes__key = RSA.decrypt_bytes_with_key(encrypt_aes_bytes, self._rsa.private_key)
         logger.debug("Recive and decrypt AES key")
 
         sig_lenth = int.from_bytes(recvRawBytes(self._sock, 4), 'big')
         server_signature_bytes = recvRawBytes(self._sock ,sig_lenth)
-        server_signature_bytes = RSA.decrypt_bytes_with_key(server_signature_bytes, rsa.private_key)
+        server_signature_bytes = RSA.decrypt_bytes_with_key(server_signature_bytes, self._rsa.private_key)
         logger.debug("Recive and decrypt server signature")
 
 
         if(HashingSHA_256.verifyHash(aes__key, server_signature_bytes)):
             self._aes_key = aes__key
         else: 
-            logger.warning("Recived AES key hash doesnt equal to server signature hash")
+            logger.error("Recived AES key hash doesnt equal to server signature hash")
+            raise Exception
 
 
+    def createSignature(self, data: tuple[bytes]) -> bytes:
+        data_bytes = b''
+        for dat in data: data_bytes =  data_bytes + dat
 
-    def __gengerate_data_to_send_RSAKey(self, rsa) -> bytes:
+        data_hash = HashingSHA_256.hashingBytes(data_bytes)
+        signature = RSA.encrypt_bytes_with_key(data_hash, self._rsa.private_key)
+        return signature
 
-        public_key_bytes = getFormatBytesFromRSAKey(rsa.public_key)
-        public_key_bytes_hash = HashingSHA_256.hashingBytes(public_key_bytes)
-        client_signature = RSA.encrypt_bytes_with_key(public_key_bytes_hash, rsa.private_key)
+
+    def __gengerate_data_to_send_RSAKey(self) -> bytes:
+
+        public_key_bytes = getFormatBytesFromRSAKey(self._rsa.public_key)
+        client_signature = self.createSignature((public_key_bytes,))
         logger.debug(f"Encrypted signature length: {len(client_signature)}")
 
         send_data = (public_key_bytes +
@@ -87,12 +92,38 @@ class Client(BaseModel):
         return send_data
 
 
+    def AUTorREG(self):
+        mode = str(input("AUT or REG: ")).encode()
+        login = str(input("Enter your login: "))
+        password = str(input("Enter your password: "))
+
+        signature = self.createSignature((login.encode(), password.encode()))
+
+        lp_bytes = getFromatBytesFromMess(login) + getFromatBytesFromMess(password)
+        lp_bytes_encryped = encrypedByAES(self._aes_key, lp_bytes)
+
+        send_data = (mode +
+                     len(signature).to_bytes(4, 'big') +
+                     signature +
+                     len(lp_bytes_encryped).to_bytes(4, 'big') +
+                     lp_bytes_encryped)
+        
+        try:
+            self._sock.sendall(send_data)
+        except Exception as es:
+            logger.exception("Error during sending AUT or REG message: ")
+
+
 if __name__ == "__main__":
     client = Client(
         host="localhost",
         port=9090
     )
 
-    client.connect()
-
-    client.close_connection()
+    try:
+        client.connect()
+        client.AUTorREG()
+    except Exception as ex:
+        logger.exception("Error: ")
+    finally:
+        client.close_connection()
