@@ -27,7 +27,7 @@ class ClientHandler():
 
         client_signature_bytes =  self.__recive_signature()
 
-        if not HashingSHA_256.verifyHash(self._client_pubk, client_signature_bytes): 
+        if not HashingSHA_256.verifyHashRSAKey(self._client_pubk, client_signature_bytes): 
             raise ValueError("Recived data was modifide")
 
         self.__generateAES()
@@ -40,8 +40,6 @@ class ClientHandler():
             self.conn.sendall(data_to_send)
         except Exception as ex:
             logger.exception("Something goes wrong during eas exchenge : ")
-
-        
 
 
 
@@ -65,10 +63,12 @@ class ClientHandler():
         encrypt_aes_bytes = RSA.encrypt_bytes_with_key(self.aes_key, self._client_pubk)
         aes_encr_lenth = len(encrypt_aes_bytes).to_bytes(4, 'big')
 
-        data_to_send = (sig_lenth +
-                        server_signature_bytes +
-                        aes_encr_lenth +
-                        encrypt_aes_bytes)
+        data_to_send = (aes_encr_lenth +
+                        encrypt_aes_bytes +
+                        sig_lenth +
+                        server_signature_bytes)
+        
+        return data_to_send
 
 
 def clientHandler(conn):

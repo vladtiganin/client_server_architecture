@@ -28,18 +28,30 @@ class HashingSHA_256:
     
 
     @staticmethod
-    def verifyHash(plain_data, signature: bytes) -> bool:
+    def verifyHashRSAKey(key_bytes, signature: bytes) -> bool:
         # salt = bytes.fromhex(signature[:32])
         # hash_data = bytes.fromhex(signature[32:])
 
         salt = (signature[:32])
         hash_data = (signature[32:])
 
-        new_hash_data = hashlib.sha256(salt + getFormatBytesFromRSAKey(plain_data)).digest() 
+        new_hash_data = hashlib.sha256(salt + getFormatBytesFromRSAKey(key_bytes)).digest() 
 
         logger.debug(f"Original hash: {hash_data.hex()}")
         logger.debug(f"Calculated hash: {new_hash_data.hex()}")
 
         if(new_hash_data == hash_data) : return True
         else : return False
+
+    
+    def verifyHash(plain_data, signature: bytes) -> bool:
+        salt = (signature[:32])
+        hash_data = (signature[32:])
+
+        new_hash_data = hashlib.sha256(salt + plain_data).digest() 
+
+        logger.debug(f"Original hash: {hash_data.hex()}")
+        logger.debug(f"Calculated hash: {new_hash_data.hex()}")
+
+        return new_hash_data == hash_data
 

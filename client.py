@@ -2,7 +2,7 @@ import socket
 import logging
 from src.utils import createLogger
 from src.utils.RSA.rsa_core import RSA
-from src.utils.bytesFuncs import getFormatBytesFromRSAKey, bigIntToBytes
+from src.utils.bytesFuncs import getFormatBytesFromRSAKey, bigIntToBytes,recvRawBytes
 from src.utils.hashing import HashingSHA_256
 import json
 from pydantic import BaseModel, PrivateAttr
@@ -16,6 +16,7 @@ class Client(BaseModel):
     host: str
     port: int
     _sock: socket.socket | None = PrivateAttr(default=None)
+    _aes_key: bytes | None = PrivateAttr(default=None)
 
 
     def connect(self) -> None:
@@ -41,17 +42,37 @@ class Client(BaseModel):
         rsa = RSA()
         rsa.generate_keys(1024)
 
-        data_to_send = self.__gengerateDataToSendRSAKey(rsa)
+        data_to_send = self.__gengerate_data_to_send_RSAKey(rsa)
 
         try:
             self._sock.sendall(data_to_send)
+            logger.debug("Send pk to server")
         except Exception as ex:
             logger.exception("Error during sending key: ")
 
         #далее нужно будет получить AES ключ
 
+        aes_encr_lenth = int.from_bytes(recvRawBytes(self._sock, 4), 'big')
+        logger.debug("Recive aes lenth")
+        encrypt_aes_bytes = recvRawBytes(self._sock ,aes_encr_lenth)
+        logger.debug("Recive AES key")
+        aes__key = RSA.decrypt_bytes_with_key(encrypt_aes_bytes, rsa.private_key)
+        logger.debug("Recive and decrypt AES key")
 
-    def __gengerateDataToSendRSAKey(self, rsa) -> bytes:
+        sig_lenth = int.from_bytes(recvRawBytes(self._sock, 4), 'big')
+        server_signature_bytes = recvRawBytes(self._sock ,sig_lenth)
+        server_signature_bytes = RSA.decrypt_bytes_with_key(server_signature_bytes, rsa.private_key)
+        logger.debug("Recive and decrypt server signature")
+
+
+        if(HashingSHA_256.verifyHash(aes__key, server_signature_bytes)):
+            self._aes_key = aes__key
+        else: 
+            logger.warning("Recived AES key hash doesnt equal to server signature hash")
+
+
+
+    def __gengerate_data_to_send_RSAKey(self, rsa) -> bytes:
 
         public_key_bytes = getFormatBytesFromRSAKey(rsa.public_key)
         public_key_bytes_hash = HashingSHA_256.hashingBytes(public_key_bytes)
