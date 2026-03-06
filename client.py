@@ -98,6 +98,7 @@ class Client(BaseModel):
         password = str(input("Enter your password: "))
 
         signature = self.createSignature((login.encode(), password.encode()))
+        logger.debug(f"Client AUT signature: {signature}")
 
         lp_bytes = getFromatBytesFromMess(login) + getFromatBytesFromMess(password)
         lp_bytes_encryped = encrypedByAES(self._aes_key, lp_bytes)

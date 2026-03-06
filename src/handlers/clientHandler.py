@@ -7,6 +7,7 @@ from src.utils.hashing import HashingSHA_256
 from Crypto.Cipher import AES 
 from Crypto.Random import get_random_bytes
 import socket
+from .modeHandlers import autHandler
 
 logger = createLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -25,7 +26,7 @@ class ClientHandler():
         logger.debug(f"Client public key first part : {self._client_pubk.first}")
         logger.debug(f"Client public key second part : {self._client_pubk.second}")
 
-        client_signature_bytes =  self.__recive_signature()
+        client_signature_bytes =  self.recive_signature()
 
         if not HashingSHA_256.verifyHashRSAKey(self._client_pubk, client_signature_bytes): 
             raise ValueError("Recived data was modifide")
@@ -42,10 +43,10 @@ class ClientHandler():
             logger.exception("Something goes wrong during eas exchenge : ")
 
 
-    def __recive_signature(self) -> bytes:
+    def recive_signature(self) -> bytes:
         sig_lenth = int.from_bytes(recvRawBytes(self.conn, 4), 'big')
         signature = recvRawBytes(self.conn, sig_lenth)
-        signature = RSA.decrypt_bytes_with_key(signature, self._client_pubk, 64)
+        signature = RSA.decrypt_bytes_with_key(signature, self._client_pubk)
         logger.debug(f"Decrypted signature length: {len(signature)}")
         logger.debug(f"Decrypted signature: {signature}")
         return signature
@@ -76,7 +77,23 @@ class ClientHandler():
 
 
     def AUTorREG(self):
-        pass
+        while True:
+            mode = (recvRawBytes(self.conn, 3))
+            if not mode: 
+                logger.info("Client disconnect, out from loop")
+                break
+            mode = mode.decode()
+            logger.info(f"Mode recived : {mode}")
+
+            match mode:     
+                case 'AUT':
+                    autHandler.handleAUT(self)
+
+                case 'REG':
+                    pass
+
+            
+
 
 
 def clientHandler(conn):

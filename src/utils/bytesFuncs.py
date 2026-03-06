@@ -23,7 +23,7 @@ def recvRawBytes(sock, lenth: int) -> bytes | None:
     data = b""
     while(len(data) < lenth):
         pock = sock.recv(lenth - len(data))
-        if not pock: return None
+        # if not pock: return None
         data += pock
     return data
 
@@ -33,7 +33,7 @@ def getFromatBytesFromMess(message: str | int) -> bytes:
     
     msg_enc = message.encode()
     lenth = len(msg_enc)
-    return lenth.to_bytes(byteorder='big') + msg_enc
+    return lenth.to_bytes(4, byteorder='big') + msg_enc
 
 
 def getFormatBytesFromRSAKey(key : RSAKey) -> bytes:
