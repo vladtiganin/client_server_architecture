@@ -93,9 +93,12 @@ class Client(BaseModel):
 
 
     def AUTorREG(self):
-        mode = str(input("AUT or REG: ")).encode()
-        login = str(input("Enter your login: "))
-        password = str(input("Enter your password: "))
+        try:
+            mode = (str(input("AUT or REG: "))).upper().encode()
+            login = str(input("Enter your login: "))
+            password = str(input("Enter your password: "))
+        except Exception as ex:
+            logger.exception("Error during get login data from user : ")
 
         signature = self.createSignature((login.encode(), password.encode()))
         logger.debug(f"Client AUT signature: {signature}")

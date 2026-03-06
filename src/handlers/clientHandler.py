@@ -7,7 +7,7 @@ from src.utils.hashing import HashingSHA_256
 from Crypto.Cipher import AES 
 from Crypto.Random import get_random_bytes
 import socket
-from .modeHandlers import autHandler
+from .modeHandlers import autHandler, regHandler
 
 logger = createLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -79,18 +79,19 @@ class ClientHandler():
     def AUTorREG(self):
         while True:
             mode = (recvRawBytes(self.conn, 3))
+
             if not mode: 
                 logger.info("Client disconnect, out from loop")
                 break
+
             mode = mode.decode()
             logger.info(f"Mode recived : {mode}")
 
             match mode:     
                 case 'AUT':
                     autHandler.handleAUT(self)
-
                 case 'REG':
-                    pass
+                    regHandler.handleREG(self)
 
             
 
