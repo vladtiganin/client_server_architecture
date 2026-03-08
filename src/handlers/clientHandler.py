@@ -7,7 +7,7 @@ from src.utils.hashing import HashingSHA_256
 from Crypto.Cipher import AES 
 from Crypto.Random import get_random_bytes
 import socket
-from .modeHandlers import autHandler, regHandler
+from .modeHandlers import autHandler, regHandler, pstHandler
 
 logger = createLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -16,6 +16,7 @@ logger.setLevel(logging.DEBUG)
 class ClientHandler():
     def __init__(self, conn : socket.socket):
         if conn is None : raise ValueError("Empty socket")
+        self.client_login = None
         self.conn = conn
         self._client_pubk = None
         self.aes_key = None
@@ -77,6 +78,22 @@ class ClientHandler():
 
 
     def AUTorREG(self):
+        
+        mode = (recvRawBytes(self.conn, 3))
+        if not mode: 
+            logger.info("Client disconnect, out from loop")
+        mode = mode.decode()
+        logger.info(f"Mode recived : {mode}")
+        match mode:     
+            case 'AUT':
+                self.client_login = autHandler.handleAUT(self)
+            case 'REG':
+                self.client_login = regHandler.handleREG(self)
+            case _:
+                raise ValueError("Invalid mode")
+
+            
+    def start_communication_loop(self):
         while True:
             mode = (recvRawBytes(self.conn, 3))
 
@@ -88,13 +105,10 @@ class ClientHandler():
             logger.info(f"Mode recived : {mode}")
 
             match mode:     
-                case 'AUT':
-                    autHandler.handleAUT(self)
-                case 'REG':
-                    regHandler.handleREG(self)
-
-            
-
+                case "PST":
+                    pstHandler.handlePST(self)
+                case _:
+                    raise ValueError("Invalid mode")
 
 
 def clientHandler(conn):
@@ -104,7 +118,7 @@ def clientHandler(conn):
     try:
         handler.handshake()
         handler.AUTorREG()
-        # handler.start_communication_loop()
+        handler.start_communication_loop()
     except Exception as ex:
         logger.exception("Error: ")
 

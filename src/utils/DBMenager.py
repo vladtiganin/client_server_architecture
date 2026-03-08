@@ -38,6 +38,8 @@ class DBMenager:
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS Files(
             id INTEGER PRIMARY KEY,
+            name TEXT,
+            size TEXT,
             data BLOB NOT NULL,
             user_id INTEGER NOT NULL,
             FOREIGN KEY(user_id) REFERENCES Users(id)
@@ -53,6 +55,7 @@ class DBMenager:
     def execute(self, command : str, params=None):
         cursor = self.connection.cursor()
         try:
+            logger.debug(f"params : {params}")
             if params:
                 cursor.execute(command, params)
             else:
@@ -68,13 +71,8 @@ class DBMenager:
                 affected_rows = cursor.rowcount
                 logger.debug(f"Affected rows: {affected_rows}")
                 return affected_rows
-            
+        except sqlite3.IntegrityError as ex:
+            raise sqlite3.IntegrityError(f"INUQUE constraint fault : {ex}")
         except Exception as ex:
             logger.exception("Exception during executing command: ")
             return None
-
-        return cursor.fetchall()
-
-
-    
-

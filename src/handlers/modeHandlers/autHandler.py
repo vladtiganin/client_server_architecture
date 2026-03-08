@@ -3,7 +3,7 @@ from src.utils.bytesFuncs import recvRawBytes
 from src.utils.hashing import HashingSHA_256
 import logging
 from src.utils.createLogger import createLogger
-from src.handlers.modeHandlers.recvLP import recvLP
+from src.handlers.modeHandlers.recv import recvLP
 from src.utils.DBMenager import DBMenager
 
 
@@ -11,7 +11,7 @@ logger = createLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-def handleAUT(handler):
+def handleAUT(handler) -> str:
     signature = handler.recive_signature()
     logger.debug(f"Client AUT signature: {signature}")
 
@@ -38,6 +38,13 @@ def handleAUT(handler):
     pass_hash_db = user_data[0][2]
     logger.debug(f"password_hash : {pass_hash_db}")
 
-    if HashingSHA_256.verifyHash(password, pass_hash_db) : print("good")
-    else : print("no")
+    if not HashingSHA_256.verifyHash(password, pass_hash_db) :
+        raise ValueError("Incorrect password")
+        logger.error("Incorrect password")
+    else:
+        logger.info("Pasaword correct, user authorized")
+
+    return login_db
+
+
 

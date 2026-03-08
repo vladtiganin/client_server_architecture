@@ -6,3 +6,4 @@ __pycache__/
 .vscode/
 *.sqlite
 drop_db.py
+all_from_db.py

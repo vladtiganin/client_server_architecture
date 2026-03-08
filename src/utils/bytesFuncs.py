@@ -23,13 +23,18 @@ def recvRawBytes(sock, lenth: int) -> bytes | None:
     data = b""
     while(len(data) < lenth):
         pock = sock.recv(lenth - len(data))
-        # if not pock: return None
+        if not pock:
+            if data:
+                raise("Incomplete data: The connection is closed until all bytes are received.")
+            else:
+                return b""
         data += pock
     return data
 
 
 def getFromatBytesFromMess(message: str | int) -> bytes:
     if isinstance(message, int): return bigIntToBytes(message)
+    if isinstance(message, bytes) : return len(message).to_bytes(4, byteorder='big') + message
     
     msg_enc = message.encode()
     lenth = len(msg_enc)

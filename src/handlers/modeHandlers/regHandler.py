@@ -3,18 +3,19 @@ from src.utils.AESfuncs import decrypedByAES
 from src.utils.hashing import HashingSHA_256
 import logging
 from src.utils.createLogger import createLogger
-from src.handlers.modeHandlers.recvLP import recvLP
+from src.handlers.modeHandlers.recv import recvLP
 from src.utils.hashing import HashingSHA_256
 from src.utils.DBMenager import DBMenager
+import sqlite3
 
 
 
 logger = createLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-def handleREG(handler):
+def handleREG(handler) -> str:
     signature = handler.recive_signature()
-    logger.debug(f"Client AUT signature: {signature}")
+    logger.debug(f"Client REG signature: {signature}")
 
     login, password = recvLP(handler)
     logger.debug(f"Client login: {login}")
@@ -26,8 +27,17 @@ def handleREG(handler):
     db = DBMenager("bd.sqlite")
     logger.debug(f"DB created")
 
-    insesrt_result = db.execute('''
-        INSERT INTO Users (login, password_hash)
-        VALUES(?, ?)
-    ''', (login.decode(), password_hash))
-    logger.debug(f"INSERT result : {insesrt_result}")    
+    try:
+        insesrt_result = db.execute('''
+            INSERT INTO Users (login, password_hash)
+            VALUES(?, ?)
+        ''', (login.decode(), password_hash))
+    except sqlite3.IntegrityError as ex:
+         logger.exception("Insert unique error: ")
+    
+    if insesrt_result is None : raise ValueError("REG error")
+
+    logger.debug(f"INSERT result : {insesrt_result}") 
+
+    return  login.decode()
+            

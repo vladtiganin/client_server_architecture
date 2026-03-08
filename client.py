@@ -6,6 +6,8 @@ from src.utils.bytesFuncs import getFormatBytesFromRSAKey, getFromatBytesFromMes
 from src.utils.hashing import HashingSHA_256
 from pydantic import BaseModel, PrivateAttr
 from src.utils.AESfuncs import decrypedByAES, encrypedByAES
+import os
+from pathlib import Path
 
 
 logger = createLogger("client")
@@ -118,6 +120,86 @@ class Client(BaseModel):
             logger.exception("Error during sending AUT or REG message: ")
 
 
+    def startComLoop(self):
+        try:
+            mode = (str(input("Enter mode: "))).upper()
+        except Exception as ex:
+            logger.exception("Error during get login data from user : ")
+
+        try:
+            match mode:
+                case "PST":
+                    self.sendPSTDta()
+                case _:
+                    raise ValueError("Invalid mode")
+        except Exception as ex:
+            logger.exception("Exeption during mode regis")
+
+
+    def sendPSTDta(self) -> bytes:
+        file_path = str(input("Enter file path: ")).strip()
+        logger.info(f"input file path : {file_path}")
+
+        path = Path(file_path)
+        if not path.exists(): raise Exception("File does not exists")
+
+        file_name = path.name
+        logger.info(f"extracted file name : {file_name}")
+
+        file_size = path.stat().st_size
+
+        salt = HashingSHA_256.generate_salt(32)
+        logger.debug(f"Salt : {salt}")
+        file_data_hash = HashingSHA_256.hashingFile(path, salt)
+        logger.debug(f"Hashed file data: {file_data_hash}")
+
+        
+        signature = RSA.encrypt_bytes_with_key(file_data_hash, self._rsa.private_key)
+
+        # meta_data = (len(signature).to_bytes(4, 'big') +
+        #              signature +
+        #              len(file_name.encode).to_bytes(4, 'big') + 
+        #              file_name.encode() +
+        #              file_size.to_bytes(4, 'big'),
+        # )
+
+        meta_data = ( 
+                     getFromatBytesFromMess(file_name) +
+                     file_size.to_bytes(4, 'big')
+                    )
+        logger.debug(f"Meta data : {meta_data}")
+
+        meta_data_encrypted = encrypedByAES(self._aes_key, meta_data)
+        logger.debug(f"Meta data encrypted : {meta_data}")
+
+        try:
+            self._sock.sendall("PST".encode() + getFromatBytesFromMess(signature) + getFromatBytesFromMess(meta_data_encrypted))
+        except Exception as ex:
+            logger.exception("Exeption during sending meta data: ")
+
+
+        self.startStream(path)
+
+
+    def startStream(self, path: Path) -> None:
+        MB = 1024 * 1024
+
+        try:
+            with open(path, "rb") as file:
+                   while True:
+                        chunck = file.read(MB)
+                        if not chunck:
+                           break
+                        logger.debug(f"Chanck lenth {len(chunck)}")
+                        chunck_enc = encrypedByAES(self._aes_key, chunck)
+                        self._sock.sendall(getFromatBytesFromMess(chunck_enc))
+        except Exception as ex:
+            logger.exception("Error during streamig : ")
+
+        logger.info("Streaming ends")     
+
+
+
 if __name__ == "__main__":
     client = Client(
         host="localhost",
@@ -127,6 +209,7 @@ if __name__ == "__main__":
     try:
         client.connect()
         client.AUTorREG()
+        client.startComLoop()
     except Exception as ex:
         logger.exception("Error: ")
     finally:
