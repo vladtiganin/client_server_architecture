@@ -1,9 +1,10 @@
 import logging
 from src.utils.createLogger import createLogger
-from src.utils.bytesFuncs import getFormatBytesFromRSAKey
+# from src.utils.bytesFuncs import getFormatBytesFromRSAKey
+import src.utils.bytesFuncs
 import hashlib
 import os
-from io import BytesIO
+from src.utils.DBMenager import DBMenager
 
 
 logger = createLogger(__name__)
@@ -49,6 +50,20 @@ class HashingSHA_256:
     
 
     @staticmethod
+    def hashBLOB( table_name: str, column_name: str, row_id: int, chunk_size = 1024*1024, salt = None) -> bytes:
+        salt = HashingSHA_256.generate_salt()
+
+        sha = hashlib.sha256()
+        sha.update(salt)
+
+        db = DBMenager("bd.sqlite")
+        for chunk in db.readBLOB(table_name, column_name, row_id):
+            sha.update(chunk)
+
+        return salt + sha.digest()
+    
+
+    @staticmethod
     def verifyHashRSAKey(key_bytes, signature: bytes) -> bool:
         # salt = bytes.fromhex(signature[:32])
         # hash_data = bytes.fromhex(signature[32:])
@@ -56,7 +71,7 @@ class HashingSHA_256:
         salt = (signature[:32])
         hash_data = (signature[32:])
 
-        new_hash_data = hashlib.sha256(salt + getFormatBytesFromRSAKey(key_bytes)).digest() 
+        new_hash_data = hashlib.sha256(salt + src.utils.bytesFuncs.getFormatBytesFromRSAKey(key_bytes)).digest() 
 
         logger.debug(f"Original hash: {hash_data.hex()}")
         logger.debug(f"Calculated hash: {new_hash_data.hex()}")

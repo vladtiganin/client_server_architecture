@@ -2,11 +2,12 @@ import socket
 import logging
 from src.utils import createLogger
 from src.utils.RSA.rsa_core import RSA
-from src.utils.bytesFuncs import getFormatBytesFromRSAKey, getFromatBytesFromMess,recvRawBytes
+from src.utils.bytesFuncs import getFormatBytesFromRSAKey, getFromatBytesFromMess,recvRawBytes, createSignature, reciveSignature
 from src.utils.hashing import HashingSHA_256
 from pydantic import BaseModel, PrivateAttr
 from src.utils.AESfuncs import decrypedByAES, encrypedByAES
 import os
+from src.utils.streamFunc import startStream
 from pathlib import Path
 
 
@@ -71,19 +72,10 @@ class Client(BaseModel):
             raise Exception
 
 
-    def createSignature(self, data: tuple[bytes]) -> bytes:
-        data_bytes = b''
-        for dat in data: data_bytes =  data_bytes + dat
-
-        data_hash = HashingSHA_256.hashingBytes(data_bytes)
-        signature = RSA.encrypt_bytes_with_key(data_hash, self._rsa.private_key)
-        return signature
-
-
     def __gengerate_data_to_send_RSAKey(self) -> bytes:
 
         public_key_bytes = getFormatBytesFromRSAKey(self._rsa.public_key)
-        client_signature = self.createSignature((public_key_bytes,))
+        client_signature = createSignature(self._rsa.private_key, (public_key_bytes,))
         logger.debug(f"Encrypted signature length: {len(client_signature)}")
 
         send_data = (public_key_bytes +
@@ -102,7 +94,7 @@ class Client(BaseModel):
         except Exception as ex:
             logger.exception("Error during get login data from user : ")
 
-        signature = self.createSignature((login.encode(), password.encode()))
+        signature = createSignature(self._rsa.private_key, (login.encode(), password.encode()))
         logger.debug(f"Client AUT signature: {signature}")
 
         lp_bytes = getFromatBytesFromMess(login) + getFromatBytesFromMess(password)
@@ -129,14 +121,46 @@ class Client(BaseModel):
         try:
             match mode:
                 case "PST":
-                    self.sendPSTDta()
+                    self.sendData()
+                case "LIS":
+                    self.listData()
+                case "GET":
+                    self.getFile()
                 case _:
                     raise ValueError("Invalid mode")
         except Exception as ex:
             logger.exception("Exeption during mode regis")
 
 
-    def sendPSTDta(self) -> bytes:
+    def getFile(self):
+        file_name = str(input("Enter file name you want to download : ")).encode()
+
+        file_name_encr = encrypedByAES(self._aes_key, file_name)
+        logger.info("File name encrypted")
+
+        signature = createSignature(self._rsa.private_key, (file_name, ))
+        logger.info("Signature created")
+
+        self._sock.sendall("GET".encode() + 
+                           getFromatBytesFromMess(signature) + 
+                           getFromatBytesFromMess(file_name_encr))
+        
+        logger.info("Get request sent")
+
+        signature = reciveSignature(self._sock, self._rsa.private_key)
+        logger.info("Signature recived")
+
+        file_name_lenth = int.from_bytes(recvRawBytes(self._sock, 4), 'big')
+        file_name = decrypedByAES(self._aes_key, recvRawBytes(self._sock, file_name_lenth)).decode()
+        logger.info(f"File name recived : {file_name}")
+
+        file_size_lenth = int.from_bytes(recvRawBytes(self._sock, 4), 'big')
+        file_size = decrypedByAES(self._aes_key, recvRawBytes(self._sock, file_size_lenth)).decode()
+        logger.info(f"File size recived : {file_size}")
+
+
+
+    def sendData(self):
         file_path = str(input("Enter file path: ")).strip()
         logger.info(f"input file path : {file_path}")
 
@@ -153,15 +177,7 @@ class Client(BaseModel):
         file_data_hash = HashingSHA_256.hashingFile(path, salt)
         logger.debug(f"Hashed file data: {file_data_hash}")
 
-        
         signature = RSA.encrypt_bytes_with_key(file_data_hash, self._rsa.private_key)
-
-        # meta_data = (len(signature).to_bytes(4, 'big') +
-        #              signature +
-        #              len(file_name.encode).to_bytes(4, 'big') + 
-        #              file_name.encode() +
-        #              file_size.to_bytes(4, 'big'),
-        # )
 
         meta_data = ( 
                      getFromatBytesFromMess(file_name) +
@@ -178,25 +194,20 @@ class Client(BaseModel):
             logger.exception("Exeption during sending meta data: ")
 
 
-        self.startStream(path)
+        startStream(self._aes_key, self._sock, path)
 
 
-    def startStream(self, path: Path) -> None:
-        MB = 1024 * 1024
+    def listData(self):
+        self._sock.send("LIS".encode())
 
-        try:
-            with open(path, "rb") as file:
-                   while True:
-                        chunck = file.read(MB)
-                        if not chunck:
-                           break
-                        logger.debug(f"Chanck lenth {len(chunck)}")
-                        chunck_enc = encrypedByAES(self._aes_key, chunck)
-                        self._sock.sendall(getFromatBytesFromMess(chunck_enc))
-        except Exception as ex:
-            logger.exception("Error during streamig : ")
+        signature = reciveSignature(self._sock, self._rsa.private_key)
 
-        logger.info("Streaming ends")     
+        tuple_lenth = int.from_bytes(recvRawBytes(self._sock, 4), 'big')
+        names_tuple = eval(decrypedByAES(self._aes_key, recvRawBytes(self._sock, tuple_lenth).decode()))
+        logger.info("Recive names tuple")
+        logger.debug(f"Names tuple : {names_tuple}")
+
+        print(names_tuple)
 
 
 

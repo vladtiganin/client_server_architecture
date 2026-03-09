@@ -1,6 +1,7 @@
 from src.utils import createLogger
 import logging
-from src.utils.RSA.rsa_core import RSAKey
+from src.utils.RSA.rsa_core import RSAKey, RSA
+from src.utils.hashing import HashingSHA_256
 
 logger = createLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -53,6 +54,7 @@ def getFormatBytesFromRSAKey(key : RSAKey) -> bytes:
             key_part_1_enc + 
             key_part_2_enc)
 
+
 def getRSAKeyFromBytes(sock) -> RSAKey:
     lenth_1 = int.from_bytes(
         bytes=recvRawBytes(sock, 4),
@@ -74,3 +76,20 @@ def getRSAKeyFromBytes(sock) -> RSAKey:
     
     return RSAKey(key_part_1, key_part_2)
 
+
+def createSignature(key, data: tuple[bytes]) -> bytes:
+        data_bytes = b''
+        for dat in data: data_bytes =  data_bytes + dat
+
+        data_hash = HashingSHA_256.hashingBytes(data_bytes)
+        signature = RSA.encrypt_bytes_with_key(data_hash, key)
+        return signature
+
+
+def reciveSignature(conn, key) -> bytes:
+        sig_lenth = int.from_bytes(recvRawBytes(conn, 4), 'big')
+        signature = recvRawBytes(conn, sig_lenth)
+        signature = RSA.decrypt_bytes_with_key(signature, key)
+        logger.debug(f"Decrypted signature length: {len(signature)}")
+        logger.debug(f"Decrypted signature: {signature}")
+        return signature

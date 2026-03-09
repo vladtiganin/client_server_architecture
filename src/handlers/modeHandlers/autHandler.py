@@ -1,5 +1,5 @@
 # from ..clientHandler import ClientHandler
-from src.utils.bytesFuncs import recvRawBytes
+from src.utils.bytesFuncs import recvRawBytes, reciveSignature
 from src.utils.hashing import HashingSHA_256
 import logging
 from src.utils.createLogger import createLogger
@@ -12,7 +12,7 @@ logger.setLevel(logging.DEBUG)
 
 
 def handleAUT(handler) -> str:
-    signature = handler.recive_signature()
+    signature = reciveSignature(handler.conn, handler._client_pubk)
     logger.debug(f"Client AUT signature: {signature}")
 
     login, password = recvLP(handler)

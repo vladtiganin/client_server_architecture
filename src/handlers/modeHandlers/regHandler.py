@@ -1,4 +1,4 @@
-from src.utils.bytesFuncs import recvRawBytes
+from src.utils.bytesFuncs import recvRawBytes, reciveSignature
 from src.utils.AESfuncs import decrypedByAES
 from src.utils.hashing import HashingSHA_256
 import logging
@@ -14,7 +14,7 @@ logger = createLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 def handleREG(handler) -> str:
-    signature = handler.recive_signature()
+    signature = reciveSignature(handler.conn, handler._client_pubk)
     logger.debug(f"Client REG signature: {signature}")
 
     login, password = recvLP(handler)
@@ -27,6 +27,8 @@ def handleREG(handler) -> str:
     db = DBMenager("bd.sqlite")
     logger.debug(f"DB created")
 
+
+    insesrt_result = None
     try:
         insesrt_result = db.execute('''
             INSERT INTO Users (login, password_hash)

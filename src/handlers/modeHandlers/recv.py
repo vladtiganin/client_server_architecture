@@ -39,26 +39,3 @@ def recvMetaData(conn, aes_key) -> tuple[str,int]:
     logger.debug(f"File size : {file_size}")
 
     return (file_name, file_size)
-
-
-def recvStreaming(conn, aes_key) -> bytes: 
-    recvedData = b""
-
-    while True:
-        try:
-            lenth = recvRawBytes(conn, 4)
-            logger.debug(f"lenth bytes : {lenth}")
-            if not lenth:
-                break
-            lenth = int.from_bytes(lenth, 'big')
-            logger.debug(f"lenth : {lenth}")
-            
-            data = decrypedByAES(aes_key, recvRawBytes(conn, lenth))
-            recvedData += data
-            logger.debug(f"recvedData += data = {recvedData}")
-        except Exception as ex:
-            logger.exception("Error during recive strimming : ")
-            break
-
-    logger.info("out from loop")
-    return recvedData

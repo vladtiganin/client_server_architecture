@@ -1,5 +1,6 @@
-from src.handlers.modeHandlers.recv import recvMetaData, recvStreaming
-from src.utils.bytesFuncs import recvRawBytes
+from src.handlers.modeHandlers.recv import recvMetaData
+from src.utils.streamFunc import recvStreaming
+from src.utils.bytesFuncs import recvRawBytes, reciveSignature
 from src.utils.hashing import HashingSHA_256
 import logging
 from src.utils.createLogger import createLogger
@@ -10,7 +11,7 @@ logger = createLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 def handlePST(handler):
-    signature = handler.recive_signature()
+    signature = reciveSignature(handler.conn, handler._client_pubk)
     logger.debug(f"Client PST signature: {signature}")
 
     meta_data = recvMetaData(handler.conn, handler.aes_key)

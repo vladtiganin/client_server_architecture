@@ -2,12 +2,12 @@ import logging
 from src.utils import createLogger
 from src.utils.RSA.rsa_core import RSAKey
 from src.utils.RSA.rsa_core import RSA
-from src.utils.bytesFuncs import getRSAKeyFromBytes, recvRawBytes, getFormatBytesFromRSAKey
+from src.utils.bytesFuncs import getRSAKeyFromBytes, recvRawBytes, getFormatBytesFromRSAKey, reciveSignature
 from src.utils.hashing import HashingSHA_256
 from Crypto.Cipher import AES 
 from Crypto.Random import get_random_bytes
 import socket
-from .modeHandlers import autHandler, regHandler, pstHandler
+from .modeHandlers import autHandler, regHandler, pstHandler, lisHandler, getHandler
 
 logger = createLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -27,7 +27,7 @@ class ClientHandler():
         logger.debug(f"Client public key first part : {self._client_pubk.first}")
         logger.debug(f"Client public key second part : {self._client_pubk.second}")
 
-        client_signature_bytes =  self.recive_signature()
+        client_signature_bytes =  reciveSignature(self.conn, self._client_pubk)
 
         if not HashingSHA_256.verifyHashRSAKey(self._client_pubk, client_signature_bytes): 
             raise ValueError("Recived data was modifide")
@@ -42,15 +42,6 @@ class ClientHandler():
             self.conn.sendall(data_to_send)
         except Exception as ex:
             logger.exception("Something goes wrong during eas exchenge : ")
-
-
-    def recive_signature(self) -> bytes:
-        sig_lenth = int.from_bytes(recvRawBytes(self.conn, 4), 'big')
-        signature = recvRawBytes(self.conn, sig_lenth)
-        signature = RSA.decrypt_bytes_with_key(signature, self._client_pubk)
-        logger.debug(f"Decrypted signature length: {len(signature)}")
-        logger.debug(f"Decrypted signature: {signature}")
-        return signature
     
 
     def __generateAES(self):
@@ -72,11 +63,6 @@ class ClientHandler():
         return data_to_send
 
 
-    def start_communication_loop(self) -> None:
-        while True:
-            pass
-
-
     def AUTorREG(self):
         
         mode = (recvRawBytes(self.conn, 3))
@@ -89,6 +75,8 @@ class ClientHandler():
                 self.client_login = autHandler.handleAUT(self)
             case 'REG':
                 self.client_login = regHandler.handleREG(self)
+            case 'LIS':
+                lisHandler.handleLIS(self)
             case _:
                 raise ValueError("Invalid mode")
 
@@ -107,6 +95,10 @@ class ClientHandler():
             match mode:     
                 case "PST":
                     pstHandler.handlePST(self)
+                case 'LIS':
+                    lisHandler.handleLIS(self)
+                case 'GET':
+                    getHandler.handleGET(self)
                 case _:
                     raise ValueError("Invalid mode")
 

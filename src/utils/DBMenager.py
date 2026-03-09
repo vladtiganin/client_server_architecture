@@ -1,7 +1,7 @@
 import sqlite3
 import logging
 from src.utils.createLogger import createLogger
-import os
+import apsw
 
 logger = createLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -38,7 +38,7 @@ class DBMenager:
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS Files(
             id INTEGER PRIMARY KEY,
-            name TEXT,
+            name TEXT UNIQUE,
             size TEXT,
             data BLOB NOT NULL,
             user_id INTEGER NOT NULL,
@@ -76,3 +76,50 @@ class DBMenager:
         except Exception as ex:
             logger.exception("Exception during executing command: ")
             return None
+        
+
+    def readBLOB(self, table_name: str, column_name: str, row_id: int, chunk_size = 1024*1024):
+        self.connection = apsw.Connection("bd.sqlite")
+        cursor = self.connection.cursor()
+        logger.info("Connect to database throw apsw")
+
+        blob = self.connection.blob_open(
+            database = "main",
+            table = table_name,
+            column = column_name,
+            rowid=row_id,
+            writeable=False
+        )
+        logger.info("Get BLOB object")
+
+        try:
+            offset = 0
+            chunk_number = 1
+
+            size = blob.length()
+            logger.debug(f"BLOB size : {size}")
+
+            while offset < size:
+                blob.seek(offset)
+                chunk = blob.read(min(chunk_size, size - offset))
+                logger.debug(f"Chunck {chunk_number}: {len(chunk)} bytes")
+
+                yield chunk
+
+                offset += len(chunk)
+                chunk_number += 1
+        except Exception as ex:
+            logger.exception(f"Error during extracting BLOB from db on {chunk_number} step : ")
+        finally:
+            blob.close()
+
+
+    def __delete__(self):
+        if hasattr(self, 'connection' and self.connection):
+            self.connection.close()
+        logger.info("DBManager deleted")
+
+
+
+    
+
