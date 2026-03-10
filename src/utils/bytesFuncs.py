@@ -39,6 +39,7 @@ def getFromatBytesFromMess(message: str | int) -> bytes:
     
     msg_enc = message.encode()
     lenth = len(msg_enc)
+    logger.debug(f"lenth : {lenth}")
     return lenth.to_bytes(4, byteorder='big') + msg_enc
 
 

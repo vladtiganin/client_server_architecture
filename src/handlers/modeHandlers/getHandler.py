@@ -61,3 +61,18 @@ def handleGET(handler):
     logger.info("Meta data sent")
 
 
+    try:
+        for chunk in db.readBLOB("Files", "data", params[0]):
+            chunk = encrypedByAES(handler.aes_key, chunk)
+            handler.conn.sendall(getFromatBytesFromMess(chunk))
+            logger.debug(f"Chunk lenth {len(chunk)}")
+    except Exception as ex:
+        logger.exception()
+    finally:
+        handler.conn.sendall((0).to_bytes(4, 'big'))
+        logger.debug(f"Chunk lenth {len(chunk)}")
+
+    
+    
+    
+    logger.info("All data sent")

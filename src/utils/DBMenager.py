@@ -2,6 +2,9 @@ import sqlite3
 import logging
 from src.utils.createLogger import createLogger
 import apsw
+import src
+import hashlib
+from src.utils.AESfuncs import decrypedByAES
 
 logger = createLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -112,6 +115,74 @@ class DBMenager:
             logger.exception(f"Error during extracting BLOB from db on {chunk_number} step : ")
         finally:
             blob.close()
+
+
+    def writeAndHashBLOB(self, name: str, size: int, handler, signature) -> bool:
+        size = size * 1.25
+        self.connection = apsw.Connection("bd.sqlite")
+        cursor = self.connection.cursor()
+        logger.info("apsw connection good")
+
+        user_id = cursor.execute('''
+            SELECT id FROM Users WHERE login = ?  
+        ''',(handler.client_login, )).fetchall()[0][0]
+        logger.info("user id estracted")
+        logger.debug(f"user id : {user_id}")
+
+        cursor.execute('''
+            INSERT INTO Files (name, size, data, user_id) 
+                VALUES (?, ?, ZEROBLOB(?), ?) 
+        ''', (name, size, size, user_id))
+        logger.info("First insert good")
+
+        row_id = self.connection.last_insert_rowid()
+        logger.debug(f"Last inserted row {row_id}")
+
+        blob = self.connection.blob_open(
+            database="main",
+            table="Files",
+            column="data",
+            rowid=row_id,
+            writeable=True
+        )
+        logger.info("Blob object created")
+
+        from src.utils.bytesFuncs import recvRawBytes
+        sha = hashlib.sha256()
+        salt = signature[:32]
+        sha.update(salt)
+        offset = 0
+        while True:
+            lenth = recvRawBytes(handler.conn, 4)
+            if lenth is None or lenth == b'\x00\x00\x00\x00':
+                break
+            lenth = int.from_bytes(lenth, 'big')
+            logger.debug(f"Lenth : {lenth}")
+            data = decrypedByAES(handler.aes_key, recvRawBytes(handler.conn, lenth))
+            logger.debug(f"Data : {data}")
+            
+            sha.update(data)
+
+            offset += lenth
+            blob.write(data)
+            blob.seek(min(size, offset))
+            logger.debug("Write to the BLOB")
+        logger.debug("Out from loop")
+    
+        data_hash = sha.digest()
+
+        if data_hash == signature[32:] : 
+            logger.info("Data verified by signature")
+            return True
+        
+        logger.info("Data not verified by signature, delete")
+        cursor.execute('''
+            DELETE FROM Files WHERE id = ?
+        ''', (row_id, ))
+
+        return False
+
+
 
 
     def __delete__(self):

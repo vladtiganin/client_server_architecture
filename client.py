@@ -7,7 +7,7 @@ from src.utils.hashing import HashingSHA_256
 from pydantic import BaseModel, PrivateAttr
 from src.utils.AESfuncs import decrypedByAES, encrypedByAES
 import os
-from src.utils.streamFunc import startStream
+from src.utils.streamFunc import startStream, recvStreaming
 from pathlib import Path
 
 
@@ -144,8 +144,8 @@ class Client(BaseModel):
         self._sock.sendall("GET".encode() + 
                            getFromatBytesFromMess(signature) + 
                            getFromatBytesFromMess(file_name_encr))
-        
         logger.info("Get request sent")
+
 
         signature = reciveSignature(self._sock, self._rsa.private_key)
         logger.info("Signature recived")
@@ -157,6 +157,15 @@ class Client(BaseModel):
         file_size_lenth = int.from_bytes(recvRawBytes(self._sock, 4), 'big')
         file_size = decrypedByAES(self._aes_key, recvRawBytes(self._sock, file_size_lenth)).decode()
         logger.info(f"File size recived : {file_size}")
+
+
+        data = recvStreaming(self._sock, self._aes_key)
+        logger.info("Data recived")
+        logger.debug(f"Data lenth : {len(data)} bytes")
+        logger.debug(f"data : {data}")
+
+        if not HashingSHA_256.verifyHash(data, signature) : raise ValueError("Recived data does not verified")
+        print("good")
 
 
 

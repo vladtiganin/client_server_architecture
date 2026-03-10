@@ -4,6 +4,8 @@ from src.utils.AESfuncs import decrypedByAES, encrypedByAES
 from src.utils.createLogger import createLogger
 import logging
 from pathlib import Path
+from src.utils.DBMenager import DBMenager
+import apsw
 
 
 logger = createLogger(__name__)
@@ -16,7 +18,7 @@ def recvStreaming(conn, aes_key) -> bytes:
         try:
             lenth = recvRawBytes(conn, 4)
             logger.debug(f"lenth bytes : {lenth}")
-            if not lenth:
+            if not lenth or lenth == b'\x00\x00\x00\x00':
                 break
             lenth = int.from_bytes(lenth, 'big')
             logger.debug(f"lenth : {lenth}")
@@ -47,5 +49,6 @@ def startStream(aes_key, sock ,path: Path) -> None:
         except Exception as ex:
             logger.exception("Error during streamig : ")
 
+        sock.sendall((0).to_bytes(4, 'big'))
         logger.info("Streaming ends") 
 
