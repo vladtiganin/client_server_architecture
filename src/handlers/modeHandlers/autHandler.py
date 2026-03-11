@@ -4,7 +4,7 @@ from src.utils.hashing import HashingSHA_256
 import logging
 from src.utils.createLogger import createLogger
 from src.handlers.modeHandlers.recv import recvLP
-from src.utils.DBMenager import DBMenager
+from src.utils.DBManager import DBManager
 
 
 logger = createLogger(__name__)
@@ -22,7 +22,7 @@ def handleAUT(handler) -> str:
     if not HashingSHA_256.verifyHash(login + password, signature): raise ValueError
     else : logger.debug("Data verifeideo")
 
-    db = DBMenager("bd.sqlite")
+    db = DBManager("bd.sqlite")
     logger.debug(f"DB created")
 
     user_data = db.execute('''

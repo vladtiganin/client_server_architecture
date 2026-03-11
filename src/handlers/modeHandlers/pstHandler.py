@@ -4,12 +4,12 @@ from src.utils.bytesFuncs import recvRawBytes, reciveSignature
 from src.utils.hashing import HashingSHA_256
 import logging
 from src.utils.createLogger import createLogger
-from src.utils.DBMenager import DBMenager
+from src.utils.DBManager import DBManager
 
 logger = createLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-db = DBMenager("bd.sqlite")
+db = DBManager("bd.sqlite")
 logger.info("Create DBMenager")
 
 

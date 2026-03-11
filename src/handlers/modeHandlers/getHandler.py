@@ -3,7 +3,7 @@ from src.utils.hashing import HashingSHA_256
 import logging
 from src.utils.createLogger import createLogger
 from src.handlers.modeHandlers.recv import recvLP
-from src.utils.DBMenager import DBMenager
+from src.utils.DBManager import DBManager
 from src.utils.AESfuncs import decrypedByAES, encrypedByAES
 from src.handlers.modeHandlers.lisHandler import extractNamesList
 from src.utils.streamFunc import startStream
@@ -31,7 +31,7 @@ def handleGET(handler):
         print("File does not exists")
         return
     
-    db = DBMenager("bd.sqlite")
+    db = DBManager("bd.sqlite")
     params = db.execute('''
         SELECT id, name, size FROM Files WHERE name = ? 
     ''', (file_name, ))[0] 

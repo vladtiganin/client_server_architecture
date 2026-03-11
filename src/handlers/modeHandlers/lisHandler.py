@@ -4,7 +4,7 @@ from src.utils.hashing import HashingSHA_256
 import logging
 from src.utils.createLogger import createLogger
 from src.handlers.modeHandlers.recv import recvLP
-from src.utils.DBMenager import DBMenager
+from src.utils.DBManager import DBManager
 from src.utils.AESfuncs import decrypedByAES, encrypedByAES
 
 
@@ -15,7 +15,7 @@ logger.setLevel(logging.DEBUG)
 def handleLIS(handler):
     data_tuple = extractNamesList(handler)
 
-    data_tuple_bytes = decrypedByAES(handler.aes_key, repr(data_tuple).encode())
+    data_tuple_bytes = encrypedByAES(handler.aes_key, repr(data_tuple).encode())
     logger.debug(f"fata tuple bytes : {data_tuple_bytes}")
 
     signature = createSignature(handler._client_pubk, (data_tuple_bytes, ))
@@ -29,7 +29,7 @@ def handleLIS(handler):
         logger.exception("Error during sending tuple of names : ")
 
 def extractNamesList(handler):
-    bd = DBMenager("bd.sqlite")
+    bd = DBManager("bd.sqlite")
     data_list_tmp = bd.execute('''
     SELECT name FROM Files WHERE user_id = (
         SELECT id FROM Users WHERE login = ?  

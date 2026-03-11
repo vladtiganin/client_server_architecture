@@ -4,7 +4,7 @@ from src.utils.createLogger import createLogger
 import src.utils.bytesFuncs
 import hashlib
 import os
-from src.utils.DBMenager import DBMenager
+from src.utils.DBManager import DBManager
 
 
 logger = createLogger(__name__)
@@ -56,7 +56,7 @@ class HashingSHA_256:
         sha = hashlib.sha256()
         sha.update(salt)
 
-        db = DBMenager("bd.sqlite")
+        db = DBManager("bd.sqlite")
         for chunk in db.readBLOB(table_name, column_name, row_id):
             sha.update(chunk)
 

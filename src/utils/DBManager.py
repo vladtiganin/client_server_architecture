@@ -9,13 +9,13 @@ from src.utils.AESfuncs import decrypedByAES
 logger = createLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-class DBMenager:
+class DBManager:
     def __init__(self, db_file_path : str):
-        logger.debug("DBMenager creating")
+        logger.debug("DBManager creating")
         self.db_file_path = db_file_path
         self.connection = sqlite3.connect(self.db_file_path)
         self.__describeDB()
-        logger.debug("DBMenager created")
+        logger.debug("DBManager created")
 
 
     def __describeDB(self) -> None:
@@ -118,7 +118,9 @@ class DBMenager:
 
 
     def writeAndHashBLOB(self, name: str, size: int, handler, signature) -> bool:
-        size = size * 1.25
+        # корректно переписать всю передачу длинны под 8 байт а то 
+        # не правильно помещается размер или беззнаковый.
+        # При exeption удалять то что создали в бд!
         self.connection = apsw.Connection("bd.sqlite")
         cursor = self.connection.cursor()
         logger.info("apsw connection good")
@@ -132,7 +134,7 @@ class DBMenager:
         cursor.execute('''
             INSERT INTO Files (name, size, data, user_id) 
                 VALUES (?, ?, ZEROBLOB(?), ?) 
-        ''', (name, size, size, user_id))
+        ''', (name, size, size * 1.25, user_id))
         logger.info("First insert good")
 
         row_id = self.connection.last_insert_rowid()
@@ -163,7 +165,8 @@ class DBMenager:
             
             sha.update(data)
 
-            offset += lenth
+
+            offset += len(data)
             blob.write(data)
             blob.seek(min(size, offset))
             logger.debug("Write to the BLOB")

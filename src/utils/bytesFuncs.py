@@ -35,7 +35,9 @@ def recvRawBytes(sock, lenth: int) -> bytes | None:
 
 def getFromatBytesFromMess(message: str | int) -> bytes:
     if isinstance(message, int): return bigIntToBytes(message)
-    if isinstance(message, bytes) : return len(message).to_bytes(4, byteorder='big') + message
+    if isinstance(message, bytes) : 
+         logger.debug(f"lenth poop : {len(message)}")
+         return len(message).to_bytes(4, byteorder='big') + message
     
     msg_enc = message.encode()
     lenth = len(msg_enc)

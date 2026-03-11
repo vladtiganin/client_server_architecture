@@ -5,7 +5,7 @@ import logging
 from src.utils.createLogger import createLogger
 from src.handlers.modeHandlers.recv import recvLP
 from src.utils.hashing import HashingSHA_256
-from src.utils.DBMenager import DBMenager
+from src.utils.DBManager import DBManager
 import sqlite3
 
 
@@ -24,7 +24,7 @@ def handleREG(handler) -> str:
     password_hash = HashingSHA_256.hashingBytes(password)
     logger.debug(f"Create hash")
 
-    db = DBMenager("bd.sqlite")
+    db = DBManager("bd.sqlite")
     logger.debug(f"DB created")
 
 
