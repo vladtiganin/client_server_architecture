@@ -7,3 +7,4 @@ __pycache__/
 *.sqlite
 drop_db.py
 all_from_db.py
+temp.py

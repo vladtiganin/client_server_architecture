@@ -5,6 +5,7 @@ import apsw
 import src
 import hashlib
 from src.utils.AESfuncs import decrypedByAES
+from src.utils.responseFuncs import sendResponse
 
 logger = createLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -118,9 +119,6 @@ class DBManager:
 
 
     def writeAndHashBLOB(self, name: str, size: int, handler, signature) -> bool:
-        # корректно переписать всю передачу длинны под 8 байт а то 
-        # не правильно помещается размер или беззнаковый.
-        # При exeption удалять то что создали в бд!
         self.connection = apsw.Connection("bd.sqlite")
         cursor = self.connection.cursor()
         logger.info("apsw connection good")
@@ -131,10 +129,18 @@ class DBManager:
         logger.info("user id estracted")
         logger.debug(f"user id : {user_id}")
 
+        check_uniq = cursor.execute('''
+            SELECT * FROM Files WHERE name = ? AND user_id = ? 
+        ''', (name, user_id))
+        
+        if len(check_uniq.fetchall()) != 0:
+            sendResponse(handler, 200, False, "For this user file allready exists")
+            return False
+
         cursor.execute('''
             INSERT INTO Files (name, size, data, user_id) 
                 VALUES (?, ?, ZEROBLOB(?), ?) 
-        ''', (name, size, size * 1.25, user_id))
+        ''', (name, size, size, user_id))
         logger.info("First insert good")
 
         row_id = self.connection.last_insert_rowid()
@@ -165,10 +171,8 @@ class DBManager:
             
             sha.update(data)
 
-
-            offset += len(data)
             blob.write(data)
-            blob.seek(min(size, offset))
+            offset += len(data)
             logger.debug("Write to the BLOB")
         logger.debug("Out from loop")
     
@@ -176,12 +180,15 @@ class DBManager:
 
         if data_hash == signature[32:] : 
             logger.info("Data verified by signature")
+            sendResponse(handler, 200, True, "Data written")
             return True
         
+
         logger.info("Data not verified by signature, delete")
         cursor.execute('''
             DELETE FROM Files WHERE id = ?
         ''', (row_id, ))
+        sendResponse(handler, 200, False, "Data broken")
 
         return False
 

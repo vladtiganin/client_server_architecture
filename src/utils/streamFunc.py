@@ -37,7 +37,7 @@ def recvStreamingToFileAndVerify(conn, aes_key, path : Path, signature):
     salt = signature[:32]
     sha.update(salt)
 
-    with open(path, "a+") as file:
+    with open(path, "w") as file:
 
         while True:
             try:

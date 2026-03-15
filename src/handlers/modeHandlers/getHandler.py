@@ -7,6 +7,7 @@ from src.utils.DBManager import DBManager
 from src.utils.AESfuncs import decrypedByAES, encrypedByAES
 from src.handlers.modeHandlers.lisHandler import extractNamesList
 from src.utils.streamFunc import startStream
+from src.utils.responseFuncs import sendResponse
 import hashlib
 from src.utils.RSA.rsa_core import RSA
 
@@ -28,8 +29,12 @@ def handleGET(handler):
     logger.debug(f"Names tuple : {names_tuple}")
 
     if file_name not in names_tuple: 
+        sendResponse(handler, 200, False, "File not found")
         print("File does not exists")
         return
+    else:
+        sendResponse(handler, 200, True, "File exists, start streaming")
+
     
     db = DBManager("bd.sqlite")
     params = db.execute('''
@@ -73,6 +78,6 @@ def handleGET(handler):
         logger.debug(f"Chunk lenth {len(chunk)}")
 
     
-    
+    sendResponse(handler, 200, True, "Data sent")
     
     logger.info("All data sent")

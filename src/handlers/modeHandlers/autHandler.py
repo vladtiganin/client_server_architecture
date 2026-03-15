@@ -1,10 +1,12 @@
 # from ..clientHandler import ClientHandler
-from src.utils.bytesFuncs import recvRawBytes, reciveSignature
+from src.utils.bytesFuncs import recvRawBytes, reciveSignature, getFromatBytesFromMess
 from src.utils.hashing import HashingSHA_256
 import logging
+from src.utils.responseFuncs import sendResponse
 from src.utils.createLogger import createLogger
 from src.handlers.modeHandlers.recv import recvLP
 from src.utils.DBManager import DBManager
+from src.utils.AESfuncs import encrypedByAES
 
 
 logger = createLogger(__name__)
@@ -20,7 +22,7 @@ def handleAUT(handler) -> str:
     logger.debug(f"Recived password : {password}")
 
     if not HashingSHA_256.verifyHash(login + password, signature): raise ValueError
-    else : logger.debug("Data verifeideo")
+    else : logger.debug("Data verifeide")
 
     db = DBManager("bd.sqlite")
     logger.debug(f"DB created")
@@ -32,6 +34,11 @@ def handleAUT(handler) -> str:
     logger.debug(f"User_data lenth: {len(user_data)}")
     logger.debug(f"{user_data}")
 
+    if len(user_data) == 0:
+        sendResponse(handler, 200, False, "Invalid login or password")
+        return
+        # raise ValueError("The user was not found : incorrect login")
+
     login_db = user_data[0][1]
     logger.debug(f"login : {login_db}")
 
@@ -39,12 +46,12 @@ def handleAUT(handler) -> str:
     logger.debug(f"password_hash : {pass_hash_db}")
 
     if not HashingSHA_256.verifyHash(password, pass_hash_db) :
-        raise ValueError("Incorrect password")
         logger.error("Incorrect password")
+        sendResponse(handler, 200, False, "Invalid login or password or broken data")
+        raise ValueError("Incorrect password")
     else:
         logger.info("Pasaword correct, user authorized")
+        sendResponse(handler, 200, True, "Authorized")
 
     return login_db
-
-
-
+ 

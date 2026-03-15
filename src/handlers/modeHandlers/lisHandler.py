@@ -6,6 +6,7 @@ from src.utils.createLogger import createLogger
 from src.handlers.modeHandlers.recv import recvLP
 from src.utils.DBManager import DBManager
 from src.utils.AESfuncs import decrypedByAES, encrypedByAES
+from src.utils.responseFuncs import sendResponse
 
 
 logger = createLogger(__name__)
@@ -24,9 +25,12 @@ def handleLIS(handler):
                  getFromatBytesFromMess(data_tuple_bytes))
 
     try:
+        sendResponse(handler, 200, True, "List sent")
         handler.conn.sendall(send_data)
     except Exception as ex:
         logger.exception("Error during sending tuple of names : ")
+        sendResponse(handler, 500, False, "Somethig goes wrong")
+
 
 def extractNamesList(handler):
     bd = DBManager("bd.sqlite")

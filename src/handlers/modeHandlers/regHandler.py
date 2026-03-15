@@ -7,11 +7,12 @@ from src.handlers.modeHandlers.recv import recvLP
 from src.utils.hashing import HashingSHA_256
 from src.utils.DBManager import DBManager
 import sqlite3
-
+from src.utils.responseFuncs import sendResponse
 
 
 logger = createLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
 
 def handleREG(handler) -> str:
     signature = reciveSignature(handler.conn, handler._client_pubk)
@@ -20,6 +21,10 @@ def handleREG(handler) -> str:
     login, password = recvLP(handler)
     logger.debug(f"Client login: {login}")
     logger.debug(f"Client password: {password}")
+
+    if not HashingSHA_256.verifyHash((login + password), signature):
+        sendResponse(handler, 200, False, "Recived broken data")
+        return
 
     password_hash = HashingSHA_256.hashingBytes(password)
     logger.debug(f"Create hash")
@@ -35,11 +40,17 @@ def handleREG(handler) -> str:
             VALUES(?, ?)
         ''', (login.decode(), password_hash))
     except sqlite3.IntegrityError as ex:
+         sendResponse(handler, 409, False, "Allready exists")
          logger.exception("Insert unique error: ")
+         return
     
-    if insesrt_result is None : raise ValueError("REG error")
+    if insesrt_result is None : 
+        sendResponse(handler, 500, False, "Somethig goes wrong, try again later")
+        logger.error("REG error")
+        return
 
-    logger.debug(f"INSERT result : {insesrt_result}") 
+    logger.debug(f"INSERT result : {insesrt_result}")
+    sendResponse(handler, 200, True, "Users registrated") 
 
     return  login.decode()
             

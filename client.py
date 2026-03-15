@@ -23,15 +23,17 @@ class Client(BaseModel):
     _rsa: RSA | None = PrivateAttr(default=None)
 
 
-    def connect(self) -> None:
+    def connect(self) -> bool:
         logger.debug("Start working...")
 
         try:
             self._sock = socket.socket()
             self._sock.connect((self.host, self.port))
             self.get_session_key()
+            return True
         except Exception as ex:
-            logger.exception("Error during connecting to server: ")
+            logger.exception("404 : Error during connecting to server: ")
+            return False
 
 
     def close_connection(self) -> None:
@@ -100,13 +102,20 @@ class Client(BaseModel):
         return password
 
 
-    def AUTorREG(self):
+    def getAUTorREGData(self):
         mode = (str(input("AUT or REG: "))).upper().encode()
         if mode not in ("AUT".encode(), "REG".encode()) : raise ValueError("Invalid mode input")
 
         login = Client.vlidateLogin(str(input("Enter your login: ")).strip())
         password = Client.vlidatePassword(str(input("Enter your password: ")).strip())
 
+        return (mode, login, password)
+
+
+
+    def AUTorREG(self, mode = None, login = None, password = None):
+        if mode is None and login is None and password is None:
+            mode, login, password = self.getAUTorREGData()
 
         signature = createSignature(self._rsa.private_key, (login.encode(), password.encode()))
         logger.debug(f"Client AUT signature: {signature}")
@@ -114,7 +123,7 @@ class Client(BaseModel):
         lp_bytes = getFromatBytesFromMess(login) + getFromatBytesFromMess(password)
         lp_bytes_encryped = encrypedByAES(self._aes_key, lp_bytes)
 
-        send_data = (mode +
+        send_data = (mode.encode() +
                      len(signature).to_bytes(4, 'big') +
                      signature +
                      len(lp_bytes_encryped).to_bytes(4, 'big') +
@@ -124,6 +133,20 @@ class Client(BaseModel):
             self._sock.sendall(send_data)
         except Exception as es:
             logger.exception("Error during sending AUT or REG message: ")
+
+        return self.reciveResonse()
+
+
+    def reciveResonse(self):
+        code = int.from_bytes(recvRawBytes(self._sock, 4), "big")
+        body_lenth = int.from_bytes(recvRawBytes(self._sock, 4), "big")
+        body = recvRawBytes(self._sock, body_lenth)
+        body = eval(decrypedByAES(self._aes_key, body).decode())
+        print(code)
+        print(body)
+        if not body["success"] :
+            logger.info(f"Error during request : {body["message"]}")
+        return (code, body)
 
 
     def startComLoop(self):
@@ -135,9 +158,32 @@ class Client(BaseModel):
                 self.listData()
             case "GET":
                 self.getFile()
+            case "DEL":
+                self.delFile()
             case _:
                 raise ValueError("Invalid mode")
 
+
+    def delFile(self):
+        file_name = input("Enter file name: ").strip().encode()
+        if file_name == b'':
+            raise ValueError("File name empty")
+        
+        signature = createSignature(self._rsa.private_key, (file_name, ))
+        logger.debug("Signature created")
+        file_name_enc = encrypedByAES(self._aes_key, file_name)
+        logger.debug("File name encrypted")
+        
+
+        send_data = ("DEL".encode() + 
+                     getFromatBytesFromMess(signature) + 
+                     getFromatBytesFromMess(file_name_enc))
+        
+        self._sock.sendall(send_data)
+
+        self.reciveResonse()
+
+        logger.debug("Data sent")
 
 
     def getFile(self):
@@ -154,6 +200,7 @@ class Client(BaseModel):
                            getFromatBytesFromMess(file_name_encr))
         logger.info("Get request sent")
 
+        self.reciveResonse()
 
         signature = reciveSignature(self._sock, self._rsa.private_key)
         logger.info("Signature recived")
@@ -169,6 +216,8 @@ class Client(BaseModel):
 
         recv_file_path = Path(r"temp.txt")
         result = recvStreamingToFileAndVerify(self._sock, self._aes_key, recv_file_path, signature)
+
+        self.reciveResonse()
         
         if result :print("good")
         else : print("No") 
@@ -180,7 +229,6 @@ class Client(BaseModel):
 
         # if not HashingSHA_256.verifyHash(data, signature) : raise ValueError("Recived data does not verified")
         # print("good")
-
 
 
     def sendData(self):
@@ -217,6 +265,8 @@ class Client(BaseModel):
 
         startStream(self._aes_key, self._sock, path)
 
+        self.reciveResonse()
+
 
     def listData(self):
         self._sock.send("LIS".encode())
@@ -229,6 +279,8 @@ class Client(BaseModel):
         logger.debug(f"Names tuple : {names_tuple}")
 
         print(names_tuple)
+
+        self.reciveResonse()
 
 
 

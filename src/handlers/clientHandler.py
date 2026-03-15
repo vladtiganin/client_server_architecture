@@ -2,12 +2,13 @@ import logging
 from src.utils import createLogger
 from src.utils.RSA.rsa_core import RSAKey
 from src.utils.RSA.rsa_core import RSA
-from src.utils.bytesFuncs import getRSAKeyFromBytes, recvRawBytes, getFormatBytesFromRSAKey, reciveSignature
+from src.utils.bytesFuncs import getRSAKeyFromBytes, recvRawBytes, reciveSignature
+from src.utils.responseFuncs import sendResponse
 from src.utils.hashing import HashingSHA_256
 from Crypto.Cipher import AES 
 from Crypto.Random import get_random_bytes
 import socket
-from .modeHandlers import autHandler, regHandler, pstHandler, lisHandler, getHandler
+from .modeHandlers import autHandler, regHandler, pstHandler, lisHandler, getHandler, delHandler
 
 logger = createLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -99,6 +100,12 @@ class ClientHandler():
                     lisHandler.handleLIS(self)
                 case 'GET':
                     getHandler.handleGET(self)
+                case "DEL":
+                    delHandler.handleDEL(self)
+                case 'AUT':
+                    self.client_login = autHandler.handleAUT(self)
+                case 'REG':
+                    self.client_login = regHandler.handleREG(self)
                 case _:
                     raise ValueError("Invalid mode")
 
@@ -109,9 +116,10 @@ def clientHandler(conn):
     handler = ClientHandler(conn)
     try:
         handler.handshake()
-        handler.AUTorREG()
+        # handler.AUTorREG()
         handler.start_communication_loop()
     except Exception as ex:
+        sendResponse(handler, 500, False, "Something goes wrong")
         logger.exception("Error: ")
 
     logger.debug("End handle client") 
