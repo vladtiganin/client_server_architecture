@@ -41,7 +41,7 @@ class HashingSHA_256:
         with open(file_path, "rb") as file:
             while True:
                 chunck = file.read(64 * 1024)
-                logger.debug(f"Chunck : {chunck.decode()}")
+                logger.debug(f"Chunck : {chunck}")
                 if not chunck:
                     break
                 sha256.update(chunck)

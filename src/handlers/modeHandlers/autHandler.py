@@ -48,7 +48,7 @@ def handleAUT(handler) -> str:
     if not HashingSHA_256.verifyHash(password, pass_hash_db) :
         logger.error("Incorrect password")
         sendResponse(handler, 200, False, "Invalid login or password or broken data")
-        raise ValueError("Incorrect password")
+        return None
     else:
         logger.info("Pasaword correct, user authorized")
         sendResponse(handler, 200, True, "Authorized")

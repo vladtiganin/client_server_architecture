@@ -20,9 +20,11 @@ def handleLIS(handler):
     logger.debug(f"fata tuple bytes : {data_tuple_bytes}")
 
     signature = createSignature(handler._client_pubk, (data_tuple_bytes, ))
+    logger.debug(f"Create signature")
 
     send_data = (getFromatBytesFromMess(signature) + 
                  getFromatBytesFromMess(data_tuple_bytes))
+    logger.debug(f"Send data")
 
     try:
         sendResponse(handler, 200, True, "List sent")
@@ -31,20 +33,23 @@ def handleLIS(handler):
         logger.exception("Error during sending tuple of names : ")
         sendResponse(handler, 500, False, "Somethig goes wrong")
 
+    logger.debug(f"End handle")
+    
+
 
 def extractNamesList(handler):
     bd = DBManager("bd.sqlite")
     data_list_tmp = bd.execute('''
-    SELECT name FROM Files WHERE user_id = (
+    SELECT name, size FROM Files WHERE user_id = (
         SELECT id FROM Users WHERE login = ?  
-        )
+        ) ORDER BY name ASC
     ''', (handler.client_login, ))
     logger.info("Data list extracted")
     logger.debug(f"Data list raw: {data_list_tmp}")
 
-    data_tuple = list(i[0] for i in data_list_tmp)
-    logger.debug(f"Data list formated: {data_tuple}")
+    # data_tuple = list(i[0] for i in data_list_tmp)
+    # logger.debug(f"Data list formated: {data_tuple}")
 
-    return data_tuple
+    return data_list_tmp
 
 

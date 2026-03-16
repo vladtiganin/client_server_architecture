@@ -28,7 +28,7 @@ def handleGET(handler):
     names_tuple = extractNamesList(handler)
     logger.debug(f"Names tuple : {names_tuple}")
 
-    if file_name not in names_tuple: 
+    if file_name not in list(i[0] for i in names_tuple): 
         sendResponse(handler, 200, False, "File not found")
         print("File does not exists")
         return

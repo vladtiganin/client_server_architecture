@@ -21,12 +21,12 @@ def handleDEL(handler):
     data = decrypedByAES(handler.aes_key, recvRawBytes(handler.conn, data_lenth)).decode()
     logger.debug(f"Data recived : {data}")
 
-    if not HashingSHA_256.verifyHash(data, signature):
+    if not HashingSHA_256.verifyHash(data.encode(), signature):
         sendResponse(handler, 400, False, "Data broken")
         return
 
     names = extractNamesList(handler)
-    if data not in names:
+    if data not in list([i[0] for i in names]):
         sendResponse(handler, 200, False, "File not found")
         return
 

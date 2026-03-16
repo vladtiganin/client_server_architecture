@@ -6,6 +6,21 @@ import logging
 from pathlib import Path
 import hashlib
 
+text_extensions = {
+        '.txt', '.text', '.md', '.markdown', '.rst', '.rtf',
+        
+        '.py', '.pyw', '.js', '.mjs', '.html', '.htm', '.css', 
+        '.scss', '.sass', '.json', '.xml', '.yaml', '.yml', 
+        '.toml', '.ini', '.cfg', '.conf', '.sh', '.bash', 
+        '.zsh', '.bat', '.cmd', '.ps1', '.sql', '.r', '.pl', 
+        '.php', '.rb', '.go', '.rs', '.java', '.kt', '.swift',
+        '.c', '.h', '.cpp', '.hpp', '.cs', '.lua',
+        
+        '.csv', '.tsv', '.log', '.diff', '.patch',
+        
+        '.svg', '.tex', '.bib', '.nfo',
+    }
+
 logger = createLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -37,26 +52,32 @@ def recvStreamingToFileAndVerify(conn, aes_key, path : Path, signature):
     salt = signature[:32]
     sha.update(salt)
 
-    with open(path, "w") as file:
 
-        while True:
-            try:
-                lenth = recvRawBytes(conn, 4)
-                logger.debug(f"lenth bytes : {lenth}")
-                if not lenth or lenth == b'\x00\x00\x00\x00':
-                    break
-                lenth = int.from_bytes(lenth, 'big')
-                logger.debug(f"lenth : {lenth}")
+    if path.suffix in text_extensions:
+        file = open(path, "w", encoding='utf-8')
+    else:
+        file = open(path, "wb")
 
-                data = decrypedByAES(aes_key, recvRawBytes(conn, lenth))
-                file.write(data.decode())
-                sha.update(data)
-
-                # recvedData += data
-                logger.debug(f"data : {data}")
-            except Exception as ex:
-                logger.exception("Error during recive strimming : ")
+    while True:
+        try:
+            lenth = recvRawBytes(conn, 4)
+            logger.debug(f"lenth bytes : {lenth}")
+            if not lenth or lenth == b'\x00\x00\x00\x00':
                 break
+            lenth = int.from_bytes(lenth, 'big')
+            logger.debug(f"lenth : {lenth}")
+            data = decrypedByAES(aes_key, recvRawBytes(conn, lenth))
+            if path.suffix == ".txt":
+                file.write(data.decode())
+            else:
+                file.write(data)
+            sha.update(data)
+            # recvedData += data
+            logger.debug(f"data : {data}")
+        except Exception as ex:
+            logger.exception("Error during recive strimming : ")
+            break
+    file.close()
 
     logger.info("out from loop")
 

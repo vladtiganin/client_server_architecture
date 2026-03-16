@@ -103,8 +103,8 @@ class Client(BaseModel):
 
 
     def getAUTorREGData(self):
-        mode = (str(input("AUT or REG: "))).upper().encode()
-        if mode not in ("AUT".encode(), "REG".encode()) : raise ValueError("Invalid mode input")
+        mode = (str(input("AUT or REG: "))).upper()
+        if mode not in ("AUT", "REG") : raise ValueError("Invalid mode input")
 
         login = Client.vlidateLogin(str(input("Enter your login: ")).strip())
         password = Client.vlidatePassword(str(input("Enter your password: ")).strip())
@@ -164,11 +164,14 @@ class Client(BaseModel):
                 raise ValueError("Invalid mode")
 
 
-    def delFile(self):
-        file_name = input("Enter file name: ").strip().encode()
-        if file_name == b'':
-            raise ValueError("File name empty")
+    def delFile(self, file_name: str | None = None):
+
+        if file_name is None:
+            file_name = input("Enter file name: ").strip()
+            if file_name == '':
+                raise ValueError("File name empty")
         
+        file_name = file_name.encode()
         signature = createSignature(self._rsa.private_key, (file_name, ))
         logger.debug("Signature created")
         file_name_enc = encrypedByAES(self._aes_key, file_name)
@@ -181,16 +184,21 @@ class Client(BaseModel):
         
         self._sock.sendall(send_data)
 
-        self.reciveResonse()
-
         logger.debug("Data sent")
 
+        return self.reciveResonse()
 
-    def getFile(self):
-        file_name = str(input("Enter file name you want to download : ")).encode()
+
+    def getFile(self, direcory_path: Path | None = None):
+
+        if direcory_path is None:
+            direcory_path = str(input("Enter file name you want to download : ")).encode()
+
+        file_name = direcory_path.name.encode()
 
         file_name_encr = encrypedByAES(self._aes_key, file_name)
         logger.info("File name encrypted")
+
 
         signature = createSignature(self._rsa.private_key, (file_name, ))
         logger.info("Signature created")
@@ -200,7 +208,8 @@ class Client(BaseModel):
                            getFromatBytesFromMess(file_name_encr))
         logger.info("Get request sent")
 
-        self.reciveResonse()
+        code, body = self.reciveResonse()
+        if not body['success']: return 
 
         signature = reciveSignature(self._sock, self._rsa.private_key)
         logger.info("Signature recived")
@@ -214,10 +223,10 @@ class Client(BaseModel):
         logger.info(f"File size recived : {file_size}")
 
 
-        recv_file_path = Path(r"temp.txt")
-        result = recvStreamingToFileAndVerify(self._sock, self._aes_key, recv_file_path, signature)
+        # recv_file_path = Path(file_name)
+        result = recvStreamingToFileAndVerify(self._sock, self._aes_key, direcory_path, signature)
 
-        self.reciveResonse()
+        return self.reciveResonse()
         
         if result :print("good")
         else : print("No") 
@@ -231,22 +240,22 @@ class Client(BaseModel):
         # print("good")
 
 
-    def sendData(self):
-        file_path = str(input("Enter file path: ")).strip()
-        if file_path == '': raise ValueError("File path is empty")
-        logger.info(f"input file path : {file_path}")
+    def sendData(self, file_path: Path | None = None):
+        if file_path is None:
+            file_path = str(input("Enter file path: ")).strip()
+            if file_path == '': raise ValueError("File path is empty")
+            logger.info(f"input file path : {file_path}")
+            file_path = Path(file_path)
+            if not file_path.exists(): raise Exception("File does not exists")
 
-        path = Path(file_path)
-        if not path.exists(): raise Exception("File does not exists")
-
-        file_name = path.name
+        file_name = file_path.name
         logger.info(f"extracted file name : {file_name}")
 
-        file_size = path.stat().st_size
+        file_size = file_path.stat().st_size
 
         salt = HashingSHA_256.generate_salt(32)
         logger.debug(f"Salt : {salt}")
-        file_data_hash = HashingSHA_256.hashingFile(path, salt)
+        file_data_hash = HashingSHA_256.hashingFile(file_path, salt)
         logger.debug(f"Hashed file data: {file_data_hash}")
 
         signature = RSA.encrypt_bytes_with_key(file_data_hash, self._rsa.private_key)
@@ -263,16 +272,20 @@ class Client(BaseModel):
                            getFromatBytesFromMess(meta_data_encrypted))
 
 
-        startStream(self._aes_key, self._sock, path)
+        startStream(self._aes_key, self._sock, file_path)
 
-        self.reciveResonse()
-
+        return self.reciveResonse()
+        
 
     def listData(self):
         self._sock.send("LIS".encode())
 
-        signature = reciveSignature(self._sock, self._rsa.private_key)
+        code, body = self.reciveResonse()
 
+        signature = reciveSignature(self._sock, self._rsa.private_key)
+        logger.debug(f"Recive Signature")
+
+        
         tuple_lenth = int.from_bytes(recvRawBytes(self._sock, 4), 'big')
         names_tuple = eval(decrypedByAES(self._aes_key, recvRawBytes(self._sock, tuple_lenth)).decode())
         logger.info("Recive names tuple")
@@ -280,7 +293,8 @@ class Client(BaseModel):
 
         print(names_tuple)
 
-        self.reciveResonse()
+        
+        return (code, body, names_tuple)
 
 
 
