@@ -8,3 +8,5 @@ __pycache__/
 drop_db.py
 all_from_db.py
 temp.py
+*.jpg
+.env

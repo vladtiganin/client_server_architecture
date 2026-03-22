@@ -1,0 +1,18 @@
+services:
+  server-app:
+    build:
+      context: ./server_app
+      dockerfile: Dockerfile
+    image: server-app
+    container_name: server-app
+    restart: unless-stopped
+    env_file:
+      - ./server_app/.env
+    volumes:
+      - server_db:/data
+    ports:
+      - 9090:9090
+
+volumes:
+  server_db:
+    name: server_db

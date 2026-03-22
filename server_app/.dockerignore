@@ -1,0 +1,5 @@
+bd.sqlite
+server_logs/
+__pycache__/
+.env
+*.pyc
