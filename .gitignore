@@ -10,3 +10,6 @@ all_from_db.py
 temp.py
 *.jpg
 .env
+test/
+.pytest_cache/
+SERVER_APP_TESTS.md

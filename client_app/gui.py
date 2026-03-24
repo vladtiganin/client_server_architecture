@@ -226,7 +226,7 @@ class MainWindow:
             main_frame,
             bg="#1f1f1f",
             fg="#e0e0e0",
-            font=("Segoe UI", 14),
+            font=("Consolas", 14),
             selectbackground="#fd5050",
             selectforeground="#ffffff",
             activestyle="none",
@@ -296,7 +296,7 @@ class MainWindow:
 
         for name, size_raw in names:
             size_str = self.__format_bytes(int(size_raw))
-            self.file_list.insert(END, f"{name:<80}{size_str:>20}")
+            self.file_list.insert(END, f"{name:<45}{size_str:>20}")
 
     def on_del(self):
         selection = self.file_list.curselection()
@@ -306,7 +306,7 @@ class MainWindow:
 
         index = selection[0]
         text = self.file_list.get(index)
-        file_name = text[:80].strip()
+        file_name = text[:45].strip()
         self.file_list.select_clear(0, END)
 
         code, body = self.client.delFile(file_name)
