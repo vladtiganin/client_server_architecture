@@ -730,16 +730,52 @@ def test_handle_get_streams_metadata_all_chunks_zero_terminator_and_final_status
     mock_send_resp.assert_any_call(handler, 200, True, "Data sent")
     
     
+@patch("server_app.handlers.ClientHandler")
+def test_client_handler_runs_handshake_then_loop_and_closes_connection(mock_client_handler):
+    from server_app.handlers import clientHandler
+
+    conn = Mock()
+    handler_instance = Mock()
+    mock_client_handler.return_value = handler_instance
+
+    clientHandler(conn)
+
+    mock_client_handler.assert_called_once_with(conn)
+    handler_instance.handshake.assert_called_once_with()
+    handler_instance.start_communication_loop.assert_called_once_with()
+    handler_instance.conn.close.assert_called_once_with(),
 
 
+@patch("server_app.handlers.send_response")
+@patch("server_app.handlers.ClientHandler")
+def test_client_handler_sends_500_if_exception_happens_after_aes_key_exists(mock_client_handler, mock_send_resp):
+    from server_app.handlers import clientHandler
+
+    handler_instance = Mock()
+    conn = Mock()
+    handler_instance.aes_key = b"key"
+    mock_client_handler.return_value = handler_instance
+    handler_instance.start_communication_loop.side_effect = Exception
+    
+    clientHandler(conn)
+
+    mock_send_resp.assert_called_once_with(handler_instance, 500, False, "Something goes wrong")
 
 
+@patch("server_app.handlers.send_response")
+@patch("server_app.handlers.ClientHandler")
+def test_client_handler_does_not_send_500_if_aes_key_not_initialized(mock_client_handler, mock_send_resp):
+    from server_app.handlers import clientHandler
 
+    handler_instance = Mock()
+    conn = Mock()
+    handler_instance.aes_key = None
+    mock_client_handler.return_value = handler_instance
+    handler_instance.start_communication_loop.side_effect = Exception
+    
+    clientHandler(conn)
 
-
-
-
-
+    mock_send_resp.assert_not_called()
 
 
 
