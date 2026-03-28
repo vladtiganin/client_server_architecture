@@ -602,6 +602,144 @@ def test_handle_pst_passes_metadata_chunks_and_signature_to_db(
     )
 
 
+@patch("server_app.handlers.send_response")
+@patch("server_app.handlers.iter_plain_chunks", return_value = "ITER")
+@patch("server_app.handlers.recv_metadata", return_value = ["file", 10])
+@patch("server_app.handlers.receive_signature", return_value = "SIGN")
+@patch("server_app.handlers.DBManager")
+@patch("server_app.handlers.unsureAuthorized", return_value = True)
+def test_handle_pst_sends_200_on_success(
+    mock_uns_aut,
+    mock_db,
+    mock_recv_sign,
+    mock_recv_met,
+    mock_iter,
+    mock_send_resp
+):
+    from server_app.handlers import handle_pst
+
+    handler = Mock(conn = object, client_login = "vlad")
+    mock_db.return_value.store_user_file.return_value = [False, "mess"]
+
+    handle_pst(handler)
+
+    mock_send_resp.assert_called_once_with(handler, 400, False, "mess")
+
+@patch("server_app.handlers.receive_signature", return_value = "SIGN")
+@patch("server_app.handlers.unsureAuthorized", return_value = False)
+def test_handle_get_returns_immediately_for_unauthorized_user(
+    mock_uns_aut,
+    mock_recv_sign,
+):
+    from server_app.handlers import handle_get
+
+    handle_get(object())
+
+    mock_recv_sign.assert_not_called()
+
+
+@patch("server_app.handlers.send_response")
+@patch("server_app.handlers.HashingSHA_256.verifyHash", return_value = False)
+@patch("server_app.handlers.decrypedByAES", return_value = b"DECR")    
+@patch("server_app.handlers.recv_raw_bytes", return_value = b"\00\00\00\00")
+@patch("server_app.handlers.receive_signature", return_value = "SIGN")
+@patch("server_app.handlers.unsureAuthorized", return_value = True)
+def test_handle_get_sends_400_when_signature_is_invalid(
+    mock_uns_aut,
+    mock_recv_sign,
+    mock_recv_bts,
+    mock_decr,
+    mock_ver,
+    mock_send_resp
+):
+    from server_app.handlers import handle_get
+
+    handler = Mock(conn=object, client_login="vlad")
+    handle_get(handler)
+
+    mock_send_resp.assert_called_once_with(handler, 400, False, "Data broken")
+
+
+@patch("server_app.handlers.DBManager")
+@patch("server_app.handlers.send_response")
+@patch("server_app.handlers.HashingSHA_256.verifyHash", return_value = True)
+@patch("server_app.handlers.decrypedByAES", return_value = b"DECR")    
+@patch("server_app.handlers.recv_raw_bytes", return_value = b"\00\00\00\00")
+@patch("server_app.handlers.receive_signature", return_value = "SIGN")
+@patch("server_app.handlers.unsureAuthorized", return_value = True)
+def test_handle_get_sends_not_found_when_file_missing(
+    mock_uns_aut,
+    mock_recv_sign,
+    mock_recv_bts,
+    mock_decr,
+    mock_ver,
+    mock_send_resp,
+    mock_db
+):
+    from server_app.handlers import handle_get
+
+    handler = Mock(conn=object, client_login="vlad")
+    mock_db.return_value.get_user_file.return_value = None
+
+    handle_get(handler)
+
+    mock_send_resp.assert_called_once_with(handler, 200, False, "File not found")
+
+
+@patch("server_app.handlers.get_format_bytes_from_message", return_value = b"FORMATTED")
+@patch("server_app.handlers.encrypedByAES", return_value = b"AES_ENCR")
+@patch("server_app.handlers.RSA.encrypt_bytes_with_key", return_value = b"RSA_ENCR")
+@patch("server_app.handlers.DBManager")
+@patch("server_app.handlers.send_response")
+@patch("server_app.handlers.HashingSHA_256.verifyHash", return_value = True)
+@patch("server_app.handlers.decrypedByAES", return_value = b"DECR")    
+@patch("server_app.handlers.recv_raw_bytes", return_value = b"\00\00\00\00")
+@patch("server_app.handlers.receive_signature", return_value = b"SIGN")
+@patch("server_app.handlers.unsureAuthorized", return_value = True)
+def test_handle_get_streams_metadata_all_chunks_zero_terminator_and_final_status(
+    mock_uns_aut,
+    mock_recv_sign,
+    mock_recv_bts,
+    mock_decr,
+    mock_ver,
+    mock_send_resp,
+    mock_db,
+    mock_rsa_encr,
+    mock_aes_encr,
+    mock_gfbfm
+):
+    from server_app.handlers import handle_get
+
+    handler = Mock(conn=Mock(), client_login="vlad")
+    mock_db.return_value.get_user_file.return_value = [1,"file", 10]
+    mock_db.return_value.hash_blob.return_value = b"HASH"
+    mock_db.return_value.iter_blob_chunks.return_value = [b'I', b'T', b'E', b'R']
+
+    handle_get(handler)
+
+
+    mock_send_resp.assert_any_call(handler, 200, True, "File exists, start streaming")
+    handler.conn.sendall.assert_has_calls([
+        call(b"FORMATTEDFORMATTEDFORMATTED"),
+        call(b"FORMATTED"),
+        call(b"FORMATTED"),
+        call(b"FORMATTED"),
+        call(b"FORMATTED"),
+        call((0).to_bytes(4, "big"))
+        ])
+    mock_send_resp.assert_any_call(handler, 200, True, "Data sent")
     
+    
+
+
+
+
+
+
+
+
+
+
+
 
 
