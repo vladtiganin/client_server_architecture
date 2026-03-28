@@ -192,7 +192,7 @@ def handle_lis(handler) -> None:
         return
 
     db = DBManager()
-    data_list = db.list_user_files(handler.client_login)
+    data_list = db(handler.client_login)
     data_tuple_bytes = encrypedByAES(handler.aes_key, repr(data_list).encode())
     signature = create_signature(handler._client_pubk, (data_tuple_bytes,))
     send_data = get_format_bytes_from_message(signature) + get_format_bytes_from_message(data_tuple_bytes)
